@@ -1,3 +1,3 @@
-## [Project Description](wiki/)
+## [Project Description](https://github.ncsu.edu/OSR/elastic-hpcc/wiki/)
 
-## [Project Management](wiki/Project-Management)
+## [Project Management](https://github.ncsu.edu/OSR/elastic-hpcc/wiki/Project-Management)
