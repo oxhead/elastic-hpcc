@@ -1,11 +1,10 @@
 #!/bin/bash
 
-SCRIPT_DIR="$(dirname "$(dirname "$(readlink "$0")")")"
-BUILD_DIR=`readlink -e $SCRIPT_DIR/build`
-SRC_DIR=`readlink -e $SCRIPT_DIR/HPCC-Platform`
 
-echo $BUILD_DIR
-echo $SRC_DIR
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# load the env variables
+. $SCRIPT_DIR/env.sh
 
 mkdir -p $BUILD_DIR
-cd $BUILD_DIR && cmake $SRC_DIR && cmake -DCMAKE_BUILD_TYPE=Debug $SRC_DIR && make && make package
+cd $BUILD_DIR && cmake $REPO_DIR && cmake -DCMAKE_BUILD_TYPE=Debug $REPO_DIR && make && make package
