@@ -127,3 +127,6 @@ sympy-plots-for-*.tex/
 
 # compilation
 build/
+
+# virtualenv
+.venv/
