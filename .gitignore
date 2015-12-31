@@ -125,6 +125,15 @@ sympy-plots-for-*.tex/
 *.bak
 *.sav
 
+# os
+*.swp
+
+# python
+*.egg-info/
+__pycache__/
+*.py[cod]
+*$py.class
+
 # compilation
 build/
 
