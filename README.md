@@ -13,9 +13,10 @@
 ```
 vcl --hosts ~/list add_key
 ```
-3. Install the HPCC software on each node (this step should also create a user, user)
+3. Install and uninstall the HPCC software on each node (this step should also create a user, user)
 ```
-hpcc --hosts ~/list install_package --package ~/build_osr/hpccsystems-platform-osr_6.0.0-alpha1Debugtrusty_amd64.deb
+hpcc --hosts ~/list package install --deb ~/build_osr/hpccsystems-platform-osr_6.0.0-alpha1Debugtrusty_amd64.deb
+hpcc --hosts ~/list package uninstall
 ```
 4. Make sure the hpcc user has password-less ssh aceess to the nodes too, e.g.
 ```

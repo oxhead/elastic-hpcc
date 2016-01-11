@@ -1,11 +1,13 @@
 import getpass
 import os
+from collections import defaultdict
 
 import click
 import executor
 from executor import execute
 from executor.ssh.client import RemoteCommand
 
+from common import CaptureOutput
 import parallel
 
 @click.group()
@@ -38,22 +40,29 @@ def download_package(ctx, version):
     execute("wget -O hpccsystems-platform-community_5.4.6-1trusty_amd64.deb http://wpc.423a.rhocdn.net/00423A/releases/CE-Candidate-5.4.6/bin/platform/hpccsystems-platform-community_5.4.6-1trusty_amd64.deb", silent=True)
     #execute("wget -O hpccsystems-platform-community_{}-1trusty_amd64.deb http://wpc.423a.rhocdn.net/00423A/releases/CE-Candidate-{}/bin/platform/hpccsystems-platform-community_{}-1trusty_amd64.deb".format(version, version, version), silent=True)
 
-@cli.command()
-@click.option('-p', '--package', type=click.Path(exists=True, resolve_path=True))
-@click.pass_context
-def install_package(ctx, package):
-    tmp_path = "/tmp/{}".format(os.path.basename(package))
-    for host in ctx.obj['host_list']:
-        click.echo('{}: install package {}'.format(host, tmp_path))
-        execute("scp  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {} {}:{}".format(package, host, tmp_path), silent=True)
-        RemoteCommand(host, "dpkg -i {}; apt-get install -f -y".format(tmp_path), sudo=True, silent=True).start()
 
 @cli.command()
+@click.argument('action', type=click.Choice(['install', 'uninstall']))
+@click.option('--deb', type=click.Path(exists=True, resolve_path=True))
 @click.pass_context
-def uninstall_package(ctx):
-    for host in ctx.obj['host_list']:
-        click.echo('{}: uninstall package {}'.format(host, tmp_path))
-        RemoteCommand(host, "dpkg -r hpccsystems-platform", sudo=True, silent=True).start()
+def package(ctx, action, deb):
+    if action == 'install':
+        tmp_path = "/tmp/{}".format(os.path.basename(deb))
+        with parallel.CommandAgent(show_result=False) as agent:
+            for host in ctx.obj['host_list']:
+                agent.submit_command("scp  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {} {}:{}".format(deb, host, tmp_path), silent=True)
+        with parallel.CommandAgent(show_result=False) as agent:
+            print(ctx.obj['host_list'])
+            agent.submit_remote_commands(ctx.obj['host_list'], "sudo dpkg -i {}; sudo apt-get install -f -y".format(tmp_path), silent=True)
+        '''
+        for host in ctx.obj['host_list']:
+            click.echo('{}: install package {}'.format(host, tmp_path))
+            execute("scp  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {} {}:{}".format(package, host, tmp_path), silent=True)
+            RemoteCommand(host, "dpkg -i {}; apt-get install -f -y".format(tmp_path), sudo=True, silent=True).start()
+        '''
+    elif action == 'uninstall':
+        with parallel.CommandAgent(show_result=False) as agent:
+            agent.submit_remote_commands(ctx.obj['host_list'], "sudo dpkg -r hpccsystems-platform", silent=True)
 
 @cli.command()
 @click.pass_context
@@ -79,7 +88,7 @@ def verify_config(ctx):
 @click.pass_context
 def deploy_config(ctx, config):
     for host in ctx.obj['host_list']:
-        click.echo('{}: deply configuration'.format(host))
+        click.echo('{}: deploy configuration'.format(host))
         RemoteCommand(host, "cp {}/environment.xml {}/environment.xml.bak".format(ctx.obj['config_dir'], ctx.obj['config_dir']), ignore_known_hosts=True, sudo=True).start()
         execute("scp  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {} {}:/tmp/environment.xml".format(config, host), silent=True)
         RemoteCommand(host, "cp /tmp/environment.xml {}/environment.xml".format(ctx.obj['config_dir']), sudo=True, silent=True).start()
@@ -134,3 +143,30 @@ def deploy_key(ctx, username):
         agent.submit_remote_commands(ctx.obj['host_list'], "sudo chmod 644 /home/{}/.ssh/*".format(username), check=True, silent=True)
     with parallel.CommandAgent(show_result=False) as agent:
         agent.submit_remote_commands(ctx.obj['host_list'], "sudo chown {} /home/{}/.ssh/*".format(username, username), check=True, silent=True)
+
+@cli.command()
+@click.pass_context
+def cluster_topology(ctx):
+    topology = defaultdict(lambda : [])
+    with CaptureOutput() as output:
+        ctx.invoke(service, action='status')
+    host = None
+    for line in output:
+        if '[' in line:
+            host = line.split('] ')[-1]
+        elif len(line) > 0:
+            component = line.split(' ')[0].replace('my', '')
+            running = 'running' in line
+            topology[component].append((host, running))
+    return topology
+
+@cli.command()
+@click.option('--data', type=click.Path(exists=True, resolve_path=True))
+@click.option('--dropzone_path', default='/var/lib/HPCCSystems/mydropzone')
+@click.pass_context
+def upload_data(ctx, data, dropzone_path):
+    click.echo('upload data')
+    topology = ctx.invoke(cluster_topology)
+    landing_zone_host, component_status = topology['dfuserver'][0]
+    # todo: fix the file permissino in the landingzone server
+    execute('bash -c "scp -r {} {}:{}"'.format(data, landing_zone_host, dropzone_path))

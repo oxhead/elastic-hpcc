@@ -71,6 +71,18 @@ def fix_ssh(ctx, user):
         RemoteCommand(host, 'sudo service ssh reload', ignore_known_hosts=True).start()
 
 @cli.command()
+@click.option('--user', default=lambda: os.getenv('USER'))
+@click.pass_context
+def fix_sudo(ctx, user):
+    """This change the permission in sudo vim /etc/sudoers
+
+    This makes sure the user has all the permissions, e.g. switch to other user.
+    """
+    for host in ctx.obj['host_list']:
+        sudo_config = "/etc/sudoers"
+        RemoteCommand(host, 'sudo sed -i "s/^{}.*/{} ALL=(ALL) NOPASSWD: ALL/" {}'.format(user, user, sudo_config), ignore_known_hosts=True).start()
+
+@cli.command()
 @click.pass_context
 def ip(ctx):
     """This return the internal ip address of the hosts.
