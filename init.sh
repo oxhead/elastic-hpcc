@@ -11,6 +11,7 @@ action_prepare ()
     pip install executor 2>&1 > /dev/null
     pip install click 2>&1 > /dev/null
     pip install --editable sbin 2>&1 > /dev/null
+    pip install --editable bin 2>&1 > /dev/null
     deactivate
 }
 
