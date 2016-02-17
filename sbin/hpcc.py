@@ -158,6 +158,7 @@ def cluster_topology(ctx):
             component = line.split(' ')[0].replace('my', '')
             running = 'running' in line
             topology[component].append((host, running))
+    #print(topology)
     return topology
 
 @cli.command()
@@ -170,3 +171,14 @@ def upload_data(ctx, data, dropzone_path):
     landing_zone_host, component_status = topology['dfuserver'][0]
     # todo: fix the file permissino in the landingzone server
     execute('bash -c "scp -r {} {}:{}"'.format(data, landing_zone_host, dropzone_path))
+
+@cli.command()
+@click.option('--ecl', type=click.Path(exists=False, resolve_path=False))
+@click.pass_context
+def roxie(ctx, ecl):
+    click.echo('runing roxie query')
+    topology = ctx.invoke(cluster_topology)
+    thor_master_host, component_status = topology['thor'][0]
+    with parallel.CommandAgent(show_result=False, concurrency=1) as agent:
+        # assume in the roxie dir for now
+        agent.submit_remote_command(thor_master_host, 'cd roxie; ecl run --target roxie {}'.format(ecl))
