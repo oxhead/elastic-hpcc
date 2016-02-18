@@ -59,9 +59,13 @@ hpcc --hosts ~/list service --action start
 ### How to run a Roxie query
 1. Upload data to the Landing Zone, for example,
 ```
-hpcc --hosts ~/list upload_data --data ~/hpcc_dataset/OriginalPerson
+hpcc ~/list upload_data --data ~/hpcc_dataset/OriginalPerson
 ```
-2. Run the command (assume all the files at roxie under the current user on the Thor master)
+1. Spray the data
 ```
-hpcc --hosts ~/list roxie --ecl test.ecl
+hpcc spray OriginalPerson tutorial:YN::OriginalPerson --dstcluster myroxie --recordsize 124
+```
+1. Run the command (assume all the files at roxie under the current user on the Thor master)
+```
+hpcc roxie --ecl test.ecl
 ```

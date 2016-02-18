@@ -1,5 +1,6 @@
 import getpass
 import os
+import pickle
 from collections import defaultdict
 
 import click
@@ -11,10 +12,11 @@ from common import CaptureOutput
 import parallel
 
 @click.group()
-@click.option('--hosts', type=click.Path(exists=True, resolve_path=True))
-@click.option('--host', '-m', multiple=True)
+@click.option('--hosts', type=click.Path(exists=True, resolve_path=True), default=".cluster_conf")
+#@click.option('--host', '-m', multiple=True)
 @click.option('--config_dir', type=click.Path(), default="/etc/HPCCSystems")
 @click.option('--system_dir', type=click.Path(), default="/opt/HPCCSystems")
+@click.option('--reload/--cached', default=False)
 @click.pass_context
 def cli(ctx, **kwargs):
     """This is a command line tool that works for VCL instances
@@ -26,6 +28,16 @@ def cli(ctx, **kwargs):
             ctx.obj['host_list'].extend([line.rstrip('\n') for line in f])
     elif len(ctx.obj['host']) > 0:
         ctx.obj['host_list'].extend(ctx.obj['host'])
+    topology_cached = "/tmp/.topology.cached"
+    if ctx.obj['reload'] or (not os.path.exists(topology_cached)):
+        topology = ctx.invoke(cluster_topology)
+        print(topology)
+        ctx.obj['topology'] = topology
+        with open(topology_cached, 'wb') as f:
+            pickle.dump(topology, f)
+    else:
+        with open(topology_cached, 'rb') as f:
+            ctx.obj['topology'] = pickle.load(f)
 
 @cli.command()
 @click.pass_context
@@ -159,7 +171,7 @@ def cluster_topology(ctx):
             running = 'running' in line
             topology[component].append((host, running))
     #print(topology)
-    return topology
+    return dict(topology)
 
 @cli.command()
 @click.option('--data', type=click.Path(exists=True, resolve_path=True))
@@ -173,12 +185,25 @@ def upload_data(ctx, data, dropzone_path):
     execute('bash -c "scp -r {} {}:{}"'.format(data, landing_zone_host, dropzone_path))
 
 @cli.command()
+@click.argument('data')
+@click.argument('dstname')
+@click.option('--dstcluster', default='myroxie')
+@click.option('--format', default='fixed', type=click.Choice(['fixed', 'csv', 'xml', 'json']))
+@click.option('--recordsize', type=int)
+@click.pass_context
+def spray(ctx, data, dstname, dstcluster, format, recordsize):
+    click.echo('runing roxie query')
+    #topology = ctx.invoke(cluster_topology)
+    dali_host, component_status = ctx.obj['topology']['dali'][0]
+    execute('{}/bin/dfuplus server={} action=spray srcip={} srcfile=/var/lib/HPCCSystems/mydropzone/{} dstname={} dstcluster={} format={} recordsize={}'.format(ctx.obj['system_dir'], dali_host, dali_host, data, dstname, dstcluster, format, recordsize))
+#bin/dfuplus action=spray srcip=10.25.11.81 srcfile=/var/lib/HPCCSystems/mydropzone/OriginalPerson dstname=tutorial:YN::OriginalPerson dstcluster=mythor format=fixed recordsize=124 server=152.46.16.135
+
+@cli.command()
 @click.option('--ecl', type=click.Path(exists=False, resolve_path=False))
 @click.pass_context
 def roxie(ctx, ecl):
     click.echo('runing roxie query')
-    topology = ctx.invoke(cluster_topology)
-    thor_master_host, component_status = topology['thor'][0]
+    thor_master_host, component_status = ctx.obj['topology']['thor'][0]
     with parallel.CommandAgent(show_result=False, concurrency=1) as agent:
         # assume in the roxie dir for now
         agent.submit_remote_command(thor_master_host, 'cd roxie; ecl run --target roxie {}'.format(ecl))
