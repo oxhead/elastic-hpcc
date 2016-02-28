@@ -1,0 +1,2 @@
+IMPORT IMDB;
+OUTPUT(IMDB.FileActors);
