@@ -102,8 +102,8 @@ def service(ctx, action, component):
         else:
             with parallel.CommandAgent() as agent:
                 agent.submit_remote_commands(ctx.obj['host_list'], "sudo service hpcc-init {}".format(action), check=False, silent=True, capture=True)
-            with parallel.CommandAgent() as agent:
-                agent.submit_remote_commands(ctx.obj['host_list'], "sudo service dafilesrv {}".format(action), check=False, silent=True, capture=True)
+            #with parallel.CommandAgent() as agent:
+            #    agent.submit_remote_commands(ctx.obj['host_list'], "sudo service dafilesrv {}".format(action), check=False, silent=True, capture=True)
 
 @cli.command()
 @click.option('-u', '--username', default='hpcc')
@@ -127,7 +127,7 @@ def deploy_key(ctx, username):
 
 @cli.command()
 @click.pass_context
-def cluster_topology(ctx):
+def cluster_topology(ctx, show=False):
     topology = defaultdict(lambda : [])
     with CaptureOutput() as output:
         ctx.invoke(service, action='status')
@@ -139,7 +139,10 @@ def cluster_topology(ctx):
             component = line.split(' ')[0].replace('my', '')
             running = 'running' in line
             topology[component].append((host, running))
-    print(topology)
+    for (component, hosts) in topology.items():
+        print(component)
+        for (host, condition) in hosts:
+            print("\t{}: {}".format(host, condition))
     return dict(topology)
 
 @cli.command()
@@ -148,7 +151,7 @@ def cluster_topology(ctx):
 @click.pass_context
 def upload_data(ctx, data, dropzone_path):
     click.echo('upload data')
-    topology = ctx.invoke(cluster_topology)
+    topology = ctx.invoke(cluster_topology, show=False)
     landing_zone_host, component_status = topology['dfuserver'][0]
     # todo: fix the file permissino in the landingzone server
     execute('bash -c "scp -r {} {}:{}"'.format(data, landing_zone_host, dropzone_path))
