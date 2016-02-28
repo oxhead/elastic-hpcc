@@ -12,6 +12,7 @@ action_prepare ()
     pip install click 2>&1 > /dev/null
     pip install --editable sbin 2>&1 > /dev/null
     pip install --editable bin 2>&1 > /dev/null
+    pip install --editable benchmark 2>&1 > /dev/null
     deactivate
 }
 
