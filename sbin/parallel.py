@@ -63,4 +63,6 @@ class CommandAgent:
     def run(self):
         self.pool.run()
     def results(self):
-        return {k: v.output for (k, v) in self.cmd_record.items()}
+        return {k: v.output for (k, v) in self.cmd_records.items()}
+    def status(self):
+        return {k: v.succeeded for (k, v) in self.cmd_records.items()}

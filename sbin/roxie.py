@@ -49,9 +49,10 @@ def unpublish(ctx, name):
 @cli.command()
 @click.argument('name')
 @click.option('--query', '-q', multiple=True, type=(str, str))
+@click.option('--wait', type=int, default=30000)
 @click.pass_context
-def query(ctx, name, query):
+def query(ctx, name, query, wait):
     click.echo('running a Roxie query')
     eclagent_host = get_roxie(ctx)
-    cmd = '{}/bin/ecl run roxie {} {} --server={}'.format(get_system_dir(ctx), name, convert_to_query_xml(query), eclagent_host)
+    cmd = '{}/bin/ecl run roxie {} {} --server={} --wait={}'.format(get_system_dir(ctx), name, convert_to_query_xml(query), eclagent_host, wait)
     execute(cmd, sudo=True)

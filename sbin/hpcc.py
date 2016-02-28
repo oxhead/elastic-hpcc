@@ -139,10 +139,11 @@ def cluster_topology(ctx, show=False):
             component = line.split(' ')[0].replace('my', '')
             running = 'running' in line
             topology[component].append((host, running))
-    for (component, hosts) in topology.items():
-        print(component)
-        for (host, condition) in hosts:
-            print("\t{}: {}".format(host, condition))
+    if show:
+        for (component, hosts) in topology.items():
+            print(component)
+            for (host, condition) in hosts:
+                print("\t{}: {}".format(host, condition))
     return dict(topology)
 
 @cli.command()
@@ -157,6 +158,16 @@ def upload_data(ctx, data, dropzone_path):
     execute('bash -c "scp -r {} {}:{}"'.format(data, landing_zone_host, dropzone_path))
 
 @cli.command()
+@click.option('--data', type=click.Path(exists=True, resolve_path=True))
+@click.option('--dropzone_path', default='/var/lib/HPCCSystems/mydropzone')
+@click.pass_context
+def list_data(ctx, data, dropzone_path):
+    click.echo('list logical data')
+    eclagent_host = get_roxie(ctx)
+    cmd = "{}/bin/dfuplus server={} action=list".format(get_system_dir(ctx), eclagent_host)
+    execute(cmd)
+
+@cli.command()
 @click.argument('data')
 @click.argument('dstname')
 @click.option('--dstcluster', default='myroxie')
@@ -166,13 +177,18 @@ def upload_data(ctx, data, dropzone_path):
 @click.option('--separator', default=None)
 @click.option('--terminator', default=None)
 @click.option('--quote', default=None)
+@click.option('--overwrite', default=False)
+@click.option('--replicate', default=True)
 @click.pass_context
 def spray(ctx, data, dstname, **kwargs):
     click.echo('runing roxie query')
     args = []
     for (k, v) in kwargs.items():
         if v is not None:
-            args.append("{}={}".format(k, shlex.quote(str(v))))
+            if type(v) == bool:
+                args.append("{}={}".format(k, "1" if bool(v) else "0"))
+            else:
+                args.append("{}={}".format(k, shlex.quote(str(v))))
     dali_host, component_status = ctx.obj['topology']['dali'][0]
     cmd = '{}/bin/dfuplus server={} action=spray srcip={} srcfile=/var/lib/HPCCSystems/mydropzone/{} dstname={} {}'.format(ctx.obj['system_dir'], dali_host, dali_host, data, dstname, " ".join(args))
     execute(cmd)
