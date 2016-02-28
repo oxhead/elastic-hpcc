@@ -6,6 +6,9 @@ setup(
     py_modules=[
         'vcl',
         'hpcc',
+        'ecl',
+        'thor',
+        'roxie',
     ],
     include_package_data=True,
     install_requires=[
@@ -16,6 +19,9 @@ setup(
         'console_scripts': [
             'vcl=vcl:cli',
             'hpcc=hpcc:cli',
+            'ecl=ecl:cli',
+            'thor=thor:cli',
+            'roxie=roxie:cli',
         ]
     }
 )

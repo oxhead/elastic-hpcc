@@ -2,6 +2,7 @@ import getpass
 import os
 import pickle
 from collections import defaultdict
+import shlex
 
 import click
 import executor
@@ -11,39 +12,7 @@ from executor.ssh.client import RemoteCommand
 from common import CaptureOutput
 import parallel
 
-@click.group()
-@click.option('--hosts', type=click.Path(exists=True, resolve_path=True), default=".cluster_conf")
-#@click.option('--host', '-m', multiple=True)
-@click.option('--config_dir', type=click.Path(), default="/etc/HPCCSystems")
-@click.option('--system_dir', type=click.Path(), default="/opt/HPCCSystems")
-@click.option('--reload/--cached', default=False)
-@click.pass_context
-def cli(ctx, **kwargs):
-    """This is a command line tool that works for VCL instances
-    """
-    ctx.obj = kwargs
-    ctx.obj['host_list'] = []
-    if ctx.obj['hosts'] is not None:
-        with open(ctx.obj['hosts']) as f:
-            ctx.obj['host_list'].extend([line.rstrip('\n') for line in f])
-    elif len(ctx.obj['host']) > 0:
-        ctx.obj['host_list'].extend(ctx.obj['host'])
-    topology_cached = "/tmp/.topology.cached"
-    if ctx.obj['reload'] or (not os.path.exists(topology_cached)):
-        topology = ctx.invoke(cluster_topology)
-        print(topology)
-        ctx.obj['topology'] = topology
-        with open(topology_cached, 'wb') as f:
-            pickle.dump(topology, f)
-    else:
-        with open(topology_cached, 'rb') as f:
-            ctx.obj['topology'] = pickle.load(f)
-
-@cli.command()
-@click.pass_context
-def test(ctx):
-    click.echo(ctx.obj)
-
+from cli import cli
 
 @cli.command()
 @click.option('-v', '--version')
@@ -170,7 +139,7 @@ def cluster_topology(ctx):
             component = line.split(' ')[0].replace('my', '')
             running = 'running' in line
             topology[component].append((host, running))
-    #print(topology)
+    print(topology)
     return dict(topology)
 
 @cli.command()
@@ -188,22 +157,32 @@ def upload_data(ctx, data, dropzone_path):
 @click.argument('data')
 @click.argument('dstname')
 @click.option('--dstcluster', default='myroxie')
-@click.option('--format', default='fixed', type=click.Choice(['fixed', 'csv', 'xml', 'json']))
-@click.option('--recordsize', type=int)
+@click.option('--format', default='fixed', type=click.Choice(['fixed', 'csv', 'delimited', 'xml', 'json', 'variable', 'recfmv', 'recfmvb']))
+@click.option('--recordsize', type=int, default=None)
+@click.option('--maxrecordsize', type=int, default=None)
+@click.option('--separator', default=None)
+@click.option('--terminator', default=None)
+@click.option('--quote', default=None)
 @click.pass_context
-def spray(ctx, data, dstname, dstcluster, format, recordsize):
+def spray(ctx, data, dstname, **kwargs):
     click.echo('runing roxie query')
-    #topology = ctx.invoke(cluster_topology)
+    args = []
+    for (k, v) in kwargs.items():
+        if v is not None:
+            args.append("{}={}".format(k, shlex.quote(str(v))))
     dali_host, component_status = ctx.obj['topology']['dali'][0]
-    execute('{}/bin/dfuplus server={} action=spray srcip={} srcfile=/var/lib/HPCCSystems/mydropzone/{} dstname={} dstcluster={} format={} recordsize={}'.format(ctx.obj['system_dir'], dali_host, dali_host, data, dstname, dstcluster, format, recordsize))
-#bin/dfuplus action=spray srcip=10.25.11.81 srcfile=/var/lib/HPCCSystems/mydropzone/OriginalPerson dstname=tutorial:YN::OriginalPerson dstcluster=mythor format=fixed recordsize=124 server=152.46.16.135
+    cmd = '{}/bin/dfuplus server={} action=spray srcip={} srcfile=/var/lib/HPCCSystems/mydropzone/{} dstname={} {}'.format(ctx.obj['system_dir'], dali_host, dali_host, data, dstname, " ".join(args))
+    execute(cmd)
+    #with parallel.CommandAgent(show_result=False, concurrency=1) as agent:
+    #    agent.submit_command(cmd)
 
-@cli.command()
-@click.option('--ecl', type=click.Path(exists=False, resolve_path=False))
-@click.pass_context
-def roxie(ctx, ecl):
-    click.echo('runing roxie query')
-    thor_master_host, component_status = ctx.obj['topology']['thor'][0]
-    with parallel.CommandAgent(show_result=False, concurrency=1) as agent:
-        # assume in the roxie dir for now
-        agent.submit_remote_command(thor_master_host, 'cd roxie; ecl run --target roxie {}'.format(ecl))
+def get_system_dir(ctx):
+    return ctx.obj['system_dir']
+
+def get_thor(ctx):
+    thor_master_host, component_status = ctx.obj['topology']['roxie'][0]
+    return thor_master_host
+
+def get_roxie(ctx):
+    eclagent_host, component_status = ctx.obj['topology']['eclagent'][0]
+    return eclagent_host

@@ -83,11 +83,27 @@ hpcc ~/list upload_data --data ~/hpcc_dataset/OriginalPerson
 1. Spray the data
 
   ```
-hpcc spray OriginalPerson tutorial:YN::OriginalPerson --dstcluster myroxie --recordsize 124
+* hpcc spray OriginalPerson tutorial:YN::OriginalPerson --dstcluster myroxie --recordsize 124
+* hpcc spray 2of12.txt thor::word_list_csv --dstcluster mythor --format delimited --maxrecordsize 8192 --separator \\ --terminator \\n,\\r\\n --quote \'
   ```
-1. Run the command (assume all the files at roxie under the current user on the Thor master)
+1. Run a Roxie query without publishing it
 
   ```
-hpcc roxie --ecl test.ecl
+roxie run --ecl benchmark/OriginalPerson/count_person.ecl
+  ```
+1. Publish/unpublish a Roxie query
+
+  ```
+* roxie publish ValidateAnagrams --ecl benchmark/Anagram2/anagram2.ecl
+* roxie unpublish ValidateAnagrams
   ```
 
+1. Run a Roxie query
+
+  ```
+roxie query ValidateAnagrams -q word teacher
+  ```
+
+### How to submit a job to Thor
+1. Upload and spray the required input data as in running a Roxie query
+1. Submit a Thor job
