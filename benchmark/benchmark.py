@@ -35,6 +35,30 @@ def cli(ctx, **kwargs):
     ctx.obj = kwargs
 
 @cli.command()
+@click.option('--dataset', multiple=True, default=['anagram2', 'originalperson', 'sixdegree'])
+@click.pass_context
+def download_dataset(ctx, dataset):
+    print(dataset)
+    return
+    dataset_dir = os.path.join(get_script_dir(), "dataset")
+    if 'anagram2' in dataset:
+        anagram2_dataset_dir = os.path.join(dataset_dir, "Anagram2")
+        execute("mkdir -p {}".format(anagram2_dataset_dir))
+        execute("wget http://downloads.sourceforge.net/wordlist/12dicts-5.0.zip -O {}/12dicts-5.0.zip".format(anagram2_dataset_dir))
+        execute("unzip {}/12dicts-5.0.zip -d {}".format(anagram2_dataset_dir, anagram2_dataset_dir))
+    elif 'originalperson' in dataset:
+        originalperson_dataset_dir = os.path.join(dataset_dir, "OriginalPerson")
+        execute("mkdir -p {}".format(originalperson_dataset_dir))
+        execute("wget http://wpc.423a.rhocdn.net/00423A/install/docs/3_8_0_8rc_CE/OriginalPerson -O {}/OriginalPerson".format(originalperson_dataset_dir))
+    elif 'sixedegree' in dataset:
+        sixdegree_dataset_dir = os.path.join(dataset_dir, "SixDegree")
+        execute("mkdir -p {}".format(sixdegree_dataset_dir))
+        execute("wget ftp://ftp.fu-berlin.de/pub/misc/movies/database/actors.list.gz -O {}/actors.list.gz".format(sixdegree_dataset_dir))
+        execute("wget ftp://ftp.fu-berlin.de/pub/misc/movies/database/actresses.list.gz -O {}/actresses.list.gz".format(sixdegree_dataset_dir)) 
+        execute("zcat {}/actors.list.gz > {}/actors.list".format(sixdegree_dataset_dir, sixdegree_dataset_dir))
+        execute("zcat {}/actresses.list.gz > {}/actresses.list".format(sixdegree_dataset_dir, sixdegree_dataset_dir))
+
+@cli.command()
 @click.option('--times', type=int, default=100)
 @click.option('--concurrency', type=int, default=1)
 @click.option('--query', multiple=True, type=click.Choice(['validateanagrams', 'searchlinks', 'fetchpeoplebyzipservice']))
