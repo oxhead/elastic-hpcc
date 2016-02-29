@@ -165,7 +165,35 @@ def list_data(ctx, data, dropzone_path):
     click.echo('list logical data')
     eclagent_host = get_roxie(ctx)
     cmd = "{}/bin/dfuplus server={} action=list".format(get_system_dir(ctx), eclagent_host)
-    execute(cmd)
+    output = execute(cmd, capture=True, silent=True)
+    file_list = output.splitlines()[1:]
+    for f in file_list:
+        print(f)
+    return file_list
+
+@cli.command()
+@click.option('--data', multiple=True)
+@click.pass_context
+def remove_data(ctx, data):
+    click.echo('remove logical files')
+    eclagent_host = get_roxie(ctx)
+    for f in data:
+        cmd = "{}/bin/dfuplus server={} action=remove name={}".format(get_system_dir(ctx), eclagent_host, f)
+        execute(cmd)
+
+
+@cli.command()
+@click.confirmation_option(help='Are you sure you want to delete these files?')
+@click.pass_context
+def clean_data(ctx):
+    click.echo('remove logical files')
+    eclagent_host = get_roxie(ctx)
+    file_list = []
+    with CaptureOutput() as output:
+        file_list = ctx.invoke(list_data)
+    for f in file_list:
+        cmd = "{}/bin/dfuplus server={} action=remove name={}".format(get_system_dir(ctx), eclagent_host, f)
+        execute(cmd)
 
 @cli.command()
 @click.argument('data')

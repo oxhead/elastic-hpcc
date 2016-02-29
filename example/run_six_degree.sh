@@ -12,10 +12,10 @@ hpcc spray actresses.list ~thor::in::IMDB::actresses.list --dstcluster=mythor --
 thor run --ecl benchmark/SixDegree/OutputFileActors.ecl
 
 # 4) Test to count the numbers
-thor run --ecl benchmark/SixDegree/CountNumberSets.ecl
+thor run --ecl benchmark/SixDegree/CountNumberSets.ecl --wait_until_complete
 
 # 5) Build the index required for Roxie
-thor run --ecl benchmark/SixDegree/BuildIndex.ecl
+thor run --ecl benchmark/SixDegree/BuildIndex.ecl --wait_until_complete
 
 # 6) Run a on-the-fly query without publishing it.
 thor run --ecl benchmark/SixDegree/SearchLinks.ecl --query name 'Everingham, Andi'
