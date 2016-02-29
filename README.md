@@ -107,3 +107,24 @@ roxie query ValidateAnagrams -q word teacher
 ### How to submit a job to Thor
 1. Upload and spray the required input data as in running a Roxie query
 1. Submit a Thor job
+
+
+### How to run benchmark against the Roxie clsuter
+1. Download the required dataset
+
+  ```
+benchmark download_dataset
+  ```
+1. Execute the example scripts under **example/** to prepare data and Roxie queries
+
+  ```
+* bash example/run_anagram2.sh
+* bash example/run_original_person.sh
+* bash example/run_six_degree.sh
+  ```
+
+1. To run a stress test, do
+
+  ```
+benchmark stress --times 20 --query validateanagrams --query searchlinks --query fetchpeoplebyzipservice --concurrency=2
+  ```
