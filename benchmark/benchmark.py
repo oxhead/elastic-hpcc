@@ -14,6 +14,9 @@ def get_word_list():
 def get_zipcode_list():
     return zipcode_list
 
+def get_actor_list():
+    return actor_list
+
 def get_script_dir():
     return os.path.dirname(os.path.realpath(__file__))
 
@@ -26,6 +29,11 @@ zipcode_file = os.path.join(get_script_dir(), 'dataset', 'zipcode_list.txt')
 zipcode_list = []
 with open(zipcode_file) as f:
     zipcode_list = f.read().splitlines()
+
+actor_file = os.path.join(get_script_dir(), 'dataset', 'actor_list.txt')
+actor_list = []
+with open(actor_file) as f:
+    actor_list = [actor.rstrip() for actor in f.read().splitlines()]
 
 @click.group()
 @click.pass_context
@@ -89,7 +97,8 @@ def random_query(query_list):
         word = random.choice(get_word_list())
         cmd = "roxie query validateanagrams --query word {}".format(word)
     elif selected_query == 'searchlinks':
-        cmd = "roxie query searchlinks --query name 'Everingham, Andi'"
+        actor = random.choice(get_actor_list())
+        cmd = "roxie query searchlinks --query name '{}'".format(actor)
     elif selected_query == 'fetchpeoplebyzipservice':
         zipcode = random.choice(get_zipcode_list())
         cmd = "roxie query fetchpeoplebyzipservice --query ZIPValue {}".format(zipcode)
