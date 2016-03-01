@@ -8,6 +8,7 @@ import click
 @click.option('--config_dir', type=click.Path(), default="/etc/HPCCSystems")
 @click.option('--system_dir', type=click.Path(), default="/opt/HPCCSystems")
 @click.option('--reload/--cached', default=False)
+@click.option('--show/--silent', default=False)
 @click.pass_context
 def cli(ctx, **kwargs):
     """This is a command line tool that works for VCL instances

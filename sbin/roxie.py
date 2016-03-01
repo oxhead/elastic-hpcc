@@ -7,6 +7,7 @@ import click
 import executor
 from executor import execute
 from executor.ssh.client import RemoteCommand
+from lxml import etree
 
 from common import CaptureOutput
 import parallel
@@ -47,12 +48,26 @@ def unpublish(ctx, name):
 
 
 @cli.command()
-@click.argument('name')
+@click.option('--name')
 @click.option('--query', '-q', multiple=True, type=(str, str))
+@click.option('--job')
 @click.option('--wait', type=int, default=30000)
+@click.option('--wait_until_complete', is_flag=True)
 @click.pass_context
-def query(ctx, name, query, wait):
-    click.echo('running a Roxie query')
+def query(ctx, name, query, job, wait, wait_until_complete):
+    return ctx.forward(ecl_run, target='roxie')
+
+@cli.command()
+@click.argument('wuid')
+@click.pass_context
+def lookup_workunit_info(ctx, wuid):
     eclagent_host = get_roxie(ctx)
-    cmd = '{}/bin/ecl run roxie {} {} --server={} --wait={}'.format(get_system_dir(ctx), name, convert_to_query_xml(query), eclagent_host, wait)
-    execute(cmd, sudo=True)
+    cmd = '{}/bin/daliadmin server={} workunit {}'.format(get_system_dir(ctx), eclagent_host, wuid)
+    # can be inefficient if the output is very large
+    output = execute(cmd, silent=True, capture=True)
+    doc = etree.fromstring(output)
+    participatant_roxie_nodes = set()
+    for record in doc.xpath('//Statistic[@creator]'):
+        if 'myroxie@' in record.attrib['creator']:
+            participatant_roxie_nodes.add(str(record.attrib['creator']).split('@')[-1])
+    print(participatant_roxie_nodes)

@@ -21,50 +21,93 @@ def convert_to_query_xml(query_list):
     query_xml = '--input="<request>{}</request>"'.format(query_xml)
     return query_xml
 
+def lookup_status(ctx, name, type): 
+    wuid, job_status = next(iter(ctx.invoke(status, name=name, type=type).items())) # dangerous
+    return (wuid, job_status)
+
+def extract_wuid(output, call_type):
+    if call_type == 'pq':
+        return output.splitlines()[1][3:]
+    elif call_type == 'ecl':
+        for line in output.splitlines():
+            if line.startswith('Running deployed workunit'):
+                return line.rstrip().split()[-1]
+    return None
+
+
+def _call(ctx, target_cluster, ecl, published_query, base_dir, query_input, wait, job, wait_until_complete):
+    if wait_until_complete:
+        wait = 1000 #milliseconds
+    eclagent_host = get_esp(ctx)
+
+    call_target = None
+    # should have more than three: ecl, pq, wuid, archive, dl.
+    call_type = 'pq' if published_query is not None else 'ecl'
+    program_dir = None
+    if call_type == 'pq':
+        call_target = published_query
+    elif call_type == 'ecl':
+        program_dir = os.path.dirname(ecl) if base_dir is None else base_dir
+        call_target = ecl
+
+    job_name = "{}_{}".format(os.path.splitext(os.path.basename(call_target))[0].lower(), uuid.uuid4()) if job is None else job
+    # -v for getting wuid
+    cmd = '{}/bin/ecl run -v --server {} --target {} --wait={} --name={} {} {}'.format(get_system_dir(ctx), eclagent_host, target_cluster, wait, job_name, convert_to_query_xml(query_input), call_target)
+    if program_dir is not None:
+        cmd = 'cd {}; '.format(program_dir) + cmd
+    output = execute(cmd, silent=True, capture=True)
+    if ctx.obj['show']:
+        print(output)
+    #print(output)
+    # this can be dangerous and inefficient
+    wuid = extract_wuid(output, call_type=call_type)
+
+    if not wait_until_complete:
+        return lookup_status(ctx, wuid, type='wuid')
+
+    job_running = True
+    #print('waiting for {} to complete'.format(job_name))
+    while job_running:
+        with CaptureOutput() as output:
+            (wuid, job_status) = lookup_status(ctx, wuid, type='wuid')
+            # completed, compiled and failed?
+            if 'ed' in job_status:
+                job_running = False
+        time.sleep(1)
+    return lookup_status(ctx, wuid, type='wuid')
+
 @cli.command()
 @click.option('--target', default='thor', type=click.Choice(['thor', 'roxie']))
 @click.option('--ecl', type=click.Path(exists=True, resolve_path=True))
+@click.option('--name', help='The name of the published query')
 @click.option('--dir', '-d', type=click.Path(exists=True, resolve_path=True))
 @click.option('--query', '-q', multiple=True, type=(str, str))
 @click.option('--wait', type=int, default=30000)
 @click.option('--job')
 @click.option('--wait_until_complete', is_flag=True)
 @click.pass_context
-def run(ctx, target, ecl, dir, query, wait, job, wait_until_complete):
-    click.echo('submitting a job to {}'.format(target))
-    if wait_until_complete:
-        wait = 1000 #milliseconds
-    eclagent_host = get_esp(ctx)
-    program_dir = os.path.dirname(ecl) if dir is None else dir
-    job_name = "{}_{}".format(os.path.splitext(os.path.basename(ecl))[0].lower(), uuid.uuid4()) if job is None else job
-    cmd = 'cd {}; {}/bin/ecl run --server {} --target {} --wait={} --name={} {} {}'.format(program_dir, get_system_dir(ctx), eclagent_host, target, wait, job_name, convert_to_query_xml(query), ecl)
-    execute(cmd)
-    if not wait_until_complete:
-        return
-    job_running = True
-    print('waiting for {} to complete'.format(job_name))
-    while job_running:
-        with CaptureOutput() as output:
-            wuid, job_status = next(iter(ctx.invoke(status, job=job_name).items())) # dangerous
-            if job_status == 'completed':
-                job_running = False
-        time.sleep(1)
+def run(ctx, target, ecl, name, dir, query, wait, job, wait_until_complete):
+    return _call(ctx, target, ecl, name, dir, query, wait, job, wait_until_complete)
 
 @cli.command()
-@click.argument('job')
+@click.argument('name')
+@click.option('--type', type=click.Choice(['job', 'wuid']))
 @click.pass_context
-def status(ctx, job):
-    click.echo('lookup the job status')
+def status(ctx, name, type):
     eclagent_host = get_esp(ctx)
-    cmd = '{}/bin/ecl status --server={} -n={}'.format(get_system_dir(ctx), eclagent_host, job)
+    cmd_lookup = ("-n {}" if type == 'job' else '-wu {}').format(name)
+    cmd = '{}/bin/ecl status --server={} {}'.format(get_system_dir(ctx), eclagent_host, cmd_lookup)
     results = execute(cmd, capture=True, silent=True)
     status_records = {}
     if ',' in results:
         status_records = {line.split(',')[0]: line.split(',')[2] for line in results.splitlines()}
     else:
-        with CaptureOutput() as output:
-            wuid = ctx.invoke(lookup_wuid, job=job)[0]
-            status_records[wuid] = results
+        if type == 'job':
+            with CaptureOutput() as output:
+               wuid = ctx.invoke(lookup_wuid, job=job)[0]
+               status_records[wuid] = results
+        elif type == 'wuid':
+            status_records[name] = results
     for (wuid, status) in status_records.items():
         print("{}: {}".format(wuid, status))
     return status_records
@@ -73,7 +116,6 @@ def status(ctx, job):
 @click.argument('job')
 @click.pass_context
 def lookup_wuid(ctx, job):
-    click.echo('lookup the workunit id')
     eclagent_host = get_esp(ctx)
     cmd = '{}/bin/ecl getwuid --server={} -n={}'.format(get_system_dir(ctx), eclagent_host, job)
     wuid = execute(cmd, capture=True, silent=True)

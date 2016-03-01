@@ -14,6 +14,7 @@ setup(
     install_requires=[
         'click',
         'executor',
+        'lxml',
     ],
     entry_points={
         'console_scripts': [

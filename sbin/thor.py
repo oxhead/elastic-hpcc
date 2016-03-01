@@ -23,4 +23,4 @@ from ecl import run as ecl_run
 @click.option('--wait_until_complete', is_flag=True)
 @click.pass_context
 def run(ctx, ecl, query, dir, job, wait, wait_until_complete):
-    ctx.forward(ecl_run, target='thor', job=job, wait=wait, wait_until_complete=wait_until_complete)
+    ctx.forward(ecl_run, target='thor')
