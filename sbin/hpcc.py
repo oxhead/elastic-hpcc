@@ -205,8 +205,8 @@ def clean_data(ctx):
 @click.option('--separator', default=None)
 @click.option('--terminator', default=None)
 @click.option('--quote', default=None)
-@click.option('--overwrite', default=False)
-@click.option('--replicate', default=True)
+@click.option('--overwrite', is_flag=True)
+@click.option('--replicate', is_flag=True)
 @click.pass_context
 def spray(ctx, data, dstname, **kwargs):
     click.echo('runing roxie query')
