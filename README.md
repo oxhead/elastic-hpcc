@@ -47,12 +47,21 @@ hpcc --hosts ~/list package uninstall
   ```
 vcl --hosts ~/list deploy_key hpcc
   ```
-1. Using Configuration Manager to create environment.xml
+1. Generate HPCC configurations 
 
-  ```
+  1. Using Configuration Manager to create environment.xml
+
+    ```
 * sudo /opt/HPCCSystems/sbin/configmgr
 * link to the browser, and create the configurations
-  ```
+    ```
+
+  1. Using the commadline tool
+
+    ```
+hpcc gen_config --output /tmp/mycluster.xml --overwrite --thor 5 --roxie 5 --channel_mode simple
+    ```
+
 1. Deploy the generated configuration files to all the nodes, e.g.
 
   ```

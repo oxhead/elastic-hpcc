@@ -14,6 +14,18 @@ import parallel
 
 from cli import cli
 
+
+def get_system_dir(ctx):
+    return ctx.obj['system_dir']
+
+def get_thor(ctx):
+    thor_master_host, component_status = ctx.obj['topology']['roxie'][0]
+    return thor_master_host
+
+def get_roxie(ctx):
+    eclagent_host, component_status = ctx.obj['topology']['eclagent'][0]
+    return eclagent_host
+
 @cli.command()
 @click.option('-v', '--version')
 @click.pass_context
@@ -65,7 +77,7 @@ def verify_config(ctx):
         agent.submit_remote_commands(ctx.obj['host_list'], "md5sum /etc/HPCCSystems/environment.xml", check=False, silent=False)
 
 @cli.command()
-@click.option('-c', '--config', type=click.Path(exists=True, resolve_path=True), default="/etc/HPCCSystems/environment.xml")
+@click.option('-c', '--config', type=click.Path(exists=True, resolve_path=True), default="/etc/HPCCSystems/source/mycluster.xml", help='The default configuration is located at /etc/HPCCSystems/source/mycluster.xml.')
 @click.pass_context
 def deploy_config(ctx, config):
     for host in ctx.obj['host_list']:
@@ -223,13 +235,27 @@ def spray(ctx, data, dstname, **kwargs):
     #with parallel.CommandAgent(show_result=False, concurrency=1) as agent:
     #    agent.submit_command(cmd)
 
-def get_system_dir(ctx):
-    return ctx.obj['system_dir']
+@cli.command()
+@click.option('--output', default='/etc/HPCCSystems/source/mycluster.xml', type=click.Path(exists=None, resolve_path=True))
+@click.option('--thor', default=1, type=int, help='The number of Thor nodes')
+@click.option('--roxie', default=1, type=int, help='The number of roxie nodes')
+@click.option('--support', default=1, type=int, help='The number of support nodes')
+@click.option('--channel_mode', default='simple', type=click.Choice(['simple', 'cyclic', 'overloaded', 'elastic']), help='The mechanism to determine how the channel assignment')
+@click.option('--attribute', '-a', multiple=True, type=(str, str, str), help='The custormized configurations in XML via XPath')
+@click.option('--overwrite', is_flag=True)
+@click.pass_context
+def gen_config(ctx, output, thor, roxie, support, channel_mode, attribute, overwrite):
+    if not overwrite and os.path.exists(output):
+        print('The output file already exists')
+        return
 
-def get_thor(ctx):
-    thor_master_host, component_status = ctx.obj['topology']['roxie'][0]
-    return thor_master_host
 
-def get_roxie(ctx):
-    eclagent_host, component_status = ctx.obj['topology']['eclagent'][0]
-    return eclagent_host
+    customized_attr_list = ""
+    for (xpath, attr, value) in attribute:
+        customized_attr_list = customized_attr_list + "-set_xpath_attrib_value {} {} {} ".format(xpath, attr, value)
+    if channel_mode is not None:
+        customized_attr_list = customized_attr_list + "-set_xpath_attrib_value Software/RoxieCluster @slaveConfig {}".format(channel_mode)
+
+    cmd = "{}/sbin/envgen -env {} -ipfile {} -supportnodes {} -thornodes {} -roxienodes {} -slavesPerNode {} {}".format(get_system_dir(ctx), output, ctx.obj['hosts'], support, thor, roxie, 1, customized_attr_list)
+    print(cmd)
+    execute(cmd)
