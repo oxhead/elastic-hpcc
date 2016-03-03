@@ -16,4 +16,4 @@ thor run --ecl benchmark/OriginalPerson/TutorialYourName/BWR_BuildPeopleByZip.ec
 roxie publish fetchpeoplebyzipservice --ecl benchmark/OriginalPerson/TutorialYourName/FetchPeopleByZipService.ecl --dir benchmark/OriginalPerson
 
 # 6) submit a Roxie query
-roxie query fetchpeoplebyzipservice --query ZIPValue 27617
+roxie query fetchpeoplebyzipservice --input ZIPValue 27617

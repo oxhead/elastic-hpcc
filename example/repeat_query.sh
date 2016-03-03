@@ -4,7 +4,7 @@ wuid_list="wuid_list.txt"
 wuid_host_list="wuid_host_list.txt"
 repeats=100
 
-query="roxie query --name searchlinks --query name 'Subido, Rebecca' --wait_until_complete >> $wuid_list"
+query="roxie query searchlinks --input name 'Subido, Rebecca' --wait_until_complete >> $wuid_list"
 for (( i=0;i<$repeats;i++)); do eval $query; done
 
 while read wuid_line; do

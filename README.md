@@ -112,6 +112,11 @@ roxie run --ecl benchmark/OriginalPerson/count_person.ecl
   ```
 roxie query ValidateAnagrams -q word teacher
   ```
+1. Clean unused files (data partitions) on Roxie
+
+  ```
+roxie clean_unused_files
+  ```
 
 ### How to submit a job to Thor
 1. Upload and spray the required input data as in running a Roxie query
