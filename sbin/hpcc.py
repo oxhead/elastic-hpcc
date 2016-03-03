@@ -80,11 +80,14 @@ def verify_config(ctx):
 @click.option('-c', '--config', type=click.Path(exists=True, resolve_path=True), default="/etc/HPCCSystems/source/mycluster.xml", help='The default configuration is located at /etc/HPCCSystems/source/mycluster.xml.')
 @click.pass_context
 def deploy_config(ctx, config):
-    for host in ctx.obj['host_list']:
-        click.echo('{}: deploy configuration'.format(host))
-        RemoteCommand(host, "cp {}/environment.xml {}/environment.xml.bak".format(ctx.obj['config_dir'], ctx.obj['config_dir']), ignore_known_hosts=True, sudo=True).start()
-        execute("scp  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {} {}:/tmp/environment.xml".format(config, host), silent=True)
-        RemoteCommand(host, "cp /tmp/environment.xml {}/environment.xml".format(ctx.obj['config_dir']), sudo=True, silent=True).start()
+    with parallel.CommandAgent(show_result=False) as agent:
+        for host in ctx.obj['host_list']:
+            RemoteCommand(host, "cp {}/environment.xml {}/environment.xml.bak".format(ctx.obj['config_dir'], ctx.obj['config_dir']), ignore_known_hosts=True, sudo=True).start()
+            agent.submit_command("scp  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {} {}:/tmp/environment.xml".format(config, host), silent=True)
+    with parallel.CommandAgent(show_result=False) as agent:
+        for host in ctx.obj['host_list']:
+            click.echo('{}: deploy configuration'.format(host))
+            agent.submit_remote_command(host, "cp /tmp/environment.xml {}/environment.xml".format(ctx.obj['config_dir']), sudo=True, silent=True)
 
 
 @cli.command()

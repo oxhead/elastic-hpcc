@@ -19,10 +19,13 @@ from ecl import convert_to_query_xml
 
 @cli.command()
 @click.option('--ecl', type=click.Path(exists=True, resolve_path=True))
-@click.option('--query', '-q', multiple=True, type=(str, str))
 @click.option('--dir', '-d', type=click.Path(exists=True, resolve_path=True))
+@click.option('--input', '-i', multiple=True, type=(str, str))
+@click.option('--wait', type=int, default=30000)
+@click.option('--job')
+@click.option('--wait_until_complete', is_flag=True)
 @click.pass_context
-def run(ctx, ecl, query, dir):
+def run(ctx, ecl, dir, input, wait, job, wait_until_complete):
     ctx.forward(ecl_run, target='roxie')
 
 @cli.command()
@@ -48,14 +51,14 @@ def unpublish(ctx, name):
 
 
 @cli.command()
-@click.option('--name')
-@click.option('--query', '-q', multiple=True, type=(str, str))
+@click.argument('name')
+@click.option('--input', '-i', multiple=True, type=(str, str))
 @click.option('--job')
 @click.option('--wait', type=int, default=30000)
 @click.option('--wait_until_complete', is_flag=True)
 @click.pass_context
-def query(ctx, name, query, job, wait, wait_until_complete):
-    return ctx.forward(ecl_run, target='roxie')
+def query(ctx, name, input, job, wait, wait_until_complete):
+    return ctx.forward(ecl_run, name=name, target='roxie')
 
 @cli.command()
 @click.argument('wuid')
@@ -71,3 +74,11 @@ def lookup_workunit_info(ctx, wuid):
         if 'myroxie@' in record.attrib['creator']:
             participatant_roxie_nodes.add(str(record.attrib['creator']).split('@')[-1])
     print(participatant_roxie_nodes)
+
+
+@cli.command()
+@click.pass_context
+def clean_unused_files(ctx):
+    eclagent_host = get_roxie(ctx)
+    cmd = '{}/bin/ecl roxie unused-files myroxie --server={} --delete'.format(get_system_dir(ctx), eclagent_host)
+    execute(cmd)

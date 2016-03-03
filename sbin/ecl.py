@@ -82,18 +82,18 @@ def wait(ctx, wuid):
             time.sleep(1)
     return lookup_status(ctx, wuid, type='wuid')
 
-@cli.command()
+@cli.command(context_settings=dict(ignore_unknown_options=True,))
 @click.option('--target', default='thor', type=click.Choice(['thor', 'roxie']))
 @click.option('--ecl', type=click.Path(exists=True, resolve_path=True))
 @click.option('--name', help='The name of the published query')
 @click.option('--dir', '-d', type=click.Path(exists=True, resolve_path=True))
-@click.option('--query', '-q', multiple=True, type=(str, str))
+@click.option('--input', '-i', multiple=True, type=(str, str))
 @click.option('--wait', type=int, default=30000)
 @click.option('--job')
 @click.option('--wait_until_complete', is_flag=True)
 @click.pass_context
-def run(ctx, target, ecl, name, dir, query, wait, job, wait_until_complete):
-    return _call(ctx, target, ecl, name, dir, query, wait, job, wait_until_complete)
+def run(ctx, target, ecl, name, dir, input, wait, job, wait_until_complete):
+    return _call(ctx, target, ecl, name, dir, input, wait, job, wait_until_complete)
 
 @cli.command()
 @click.argument('name')
