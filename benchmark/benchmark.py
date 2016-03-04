@@ -95,11 +95,11 @@ def random_query(query_list):
     cmd = None
     if selected_query == 'validateanagrams':
         word = random.choice(get_word_list())
-        cmd = "roxie query --name validateanagrams --query word {}".format(word)
+        cmd = "roxie query validateanagrams --input word {}".format(word)
     elif selected_query == 'searchlinks':
         actor = random.choice(get_actor_list())
-        cmd = "roxie query --name searchlinks --query name '{}'".format(actor)
+        cmd = "roxie query searchlinks --input name '{}'".format(actor)
     elif selected_query == 'fetchpeoplebyzipservice':
         zipcode = random.choice(get_zipcode_list())
-        cmd = "roxie query --name fetchpeoplebyzipservice --query ZIPValue {}".format(zipcode)
+        cmd = "roxie query fetchpeoplebyzipservice --input ZIPValue {}".format(zipcode)
     return cmd
