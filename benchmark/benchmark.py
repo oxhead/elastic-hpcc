@@ -7,6 +7,7 @@ import executor
 from executor import execute
 
 import parallel
+from ecl import convert_to_query_xml
 
 def get_word_list():
     return word_list
@@ -103,3 +104,28 @@ def random_query(query_list):
         zipcode = random.choice(get_zipcode_list())
         cmd = "roxie query fetchpeoplebyzipservice --input ZIPValue {}".format(zipcode)
     return cmd
+
+@cli.command()
+@click.option('--hosts', type=click.Path(exists=True, resolve_path=True), default='.benchmark_hosts')
+@click.option('--query', type=click.Choice(['validateanagrams', 'searchlinks', 'fetchpeoplebyzipservice']))
+@click.option('--input', '-i', multiple=True, type=(str, str))
+@click.option('--times', type=int, default=100)
+@click.option('--concurrency', type=int, default=1)
+@click.pass_context
+def distributed_stress(ctx, hosts, query, input, times, concurrency):
+    num_hosts = None
+    with open(hosts, 'r') as f:
+        num_hosts = len(f.read().splitlines())
+    if num_hosts < concurrency:
+        click.echo('too few machines to run benchmark')
+        ctx.abort()
+    selected_hosts = []
+    with open(hosts, 'r') as f:
+        selected_hosts = random.sample(f.read().splitlines(), concurrency)
+
+    input_str = convert_to_query_xml(input)
+    with parallel.CommandAgent(show_result=False, concurrency=num_hosts) as agent: 
+        for host in selected_hosts:
+            print(host)
+            print('for (( i=0;i<{};i++ )); do /opt/HPCCSystems/bin/ecl run roxie --server=10.25.11.81 {} {} >> /tmp/results.txt; done'.format(times, query, input_str))
+            agent.submit_remote_command(host, 'for (( i=0;i<{};i++ )); do /opt/HPCCSystems/bin/ecl run roxie --server=10.25.11.81 {} {} >> /tmp/results.txt; done'.format(times, query, input_str), silent=True, capture=False)

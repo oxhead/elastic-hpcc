@@ -142,3 +142,9 @@ benchmark download_dataset
   ```
 benchmark stress --times 20 --query validateanagrams --query searchlinks --query fetchpeoplebyzipservice --concurrency=2
   ```
+
+1. To run a stress test in a distributed mode, do
+
+  ```
+benchmark distributed_stress --query searchlinks --times 2 --concurrency 2
+  ```
