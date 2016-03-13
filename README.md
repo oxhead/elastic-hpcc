@@ -24,7 +24,7 @@
 1. Make sure the current user has password-less ssh access to each node listed in above
 
   ```
-vcl --hosts ~/list add_key
+vcl --hosts ~/list.pub add_key
   ```
 
 1. Create a list of private IP of servers (required on VCL)
