@@ -65,12 +65,12 @@ def _call(ctx, target_cluster, ecl, published_query, base_dir, query_input, wait
     if not wait_until_complete:
         return lookup_status(ctx, wuid, type='wuid')
 
-    return ctx.invoke(wait, wuid=wuid)
+    return ctx.invoke(wait_for_completion, wuid=wuid)
 
 @cli.command()
 @click.argument('wuid')
 @click.pass_context
-def wait(ctx, wuid):
+def wait_for_completion(ctx, wuid):
     job_running = True
     while job_running:
         with CaptureOutput() as output:

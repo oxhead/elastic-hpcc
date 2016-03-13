@@ -58,6 +58,14 @@ def package(ctx, action, deb):
             agent.submit_remote_commands(ctx.obj['host_list'], "sudo dpkg -r hpccsystems-platform", silent=True)
 
 @cli.command()
+@click.argument('command')
+@click.pass_context
+def cmd(ctx, command):
+    # @todo: need to make sure the system is turned off.
+    with parallel.CommandAgent(show_result=False, concurrency=1) as agent:
+        agent.submit_remote_commands(ctx.obj['host_list'], command, check=False, silent=False)
+
+@cli.command()
 @click.pass_context
 def clear_log(ctx):
     with parallel.CommandAgent(show_result=False) as agent:
@@ -119,6 +127,9 @@ def service(ctx, action, component):
                 agent.submit_remote_commands(ctx.obj['host_list'], "sudo service hpcc-init {}".format(action), check=False, silent=True, capture=True)
             #with parallel.CommandAgent() as agent:
             #    agent.submit_remote_commands(ctx.obj['host_list'], "sudo service dafilesrv {}".format(action), check=False, silent=True, capture=True)
+            if action == 'stop':
+                with parallel.CommandAgent() as agent:
+                    agent.submit_remote_commands(ctx.obj['host_list'], "sudo pkill -9 dafilesrv", check=False, silent=True, capture=True)
 
 @cli.command()
 @click.option('-u', '--username', default='hpcc')
