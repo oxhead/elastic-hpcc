@@ -5,7 +5,8 @@
 
 ### Required Packages this project
 * Linux
-  - sshpass ( for ssh key deploymeny on VCL)
+  - sudo apt-get install sshpass ( for ssh key deploymeny on VCL)
+  - sudo apt-get build-dep python3-lxml ( for the lxml library in pip)
 * Python
   - Python 3
   - Pip 3
