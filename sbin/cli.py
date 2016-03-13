@@ -1,7 +1,11 @@
+from collections import defaultdict
 import os
 import pickle
 
 import click
+
+from common import CaptureOutput
+import parallel
 
 @click.group()
 @click.option('--hosts', type=click.Path(exists=True, resolve_path=True), default=".cluster_conf")
@@ -22,7 +26,7 @@ def cli(ctx, **kwargs):
         ctx.obj['host_list'].extend(ctx.obj['host'])
     topology_cached = "/tmp/.topology.cached"
     if ctx.obj['reload'] or (not os.path.exists(topology_cached)):
-        topology = ctx.invoke(cluster_topology)
+        topology = create_cluster_topology(ctx)
         print(topology)
         ctx.obj['topology'] = topology
         with open(topology_cached, 'wb') as f:
@@ -45,3 +49,18 @@ def get_roxie(ctx):
 def get_esp(ctx):
     eclagent_host, component_status = ctx.obj['topology']['eclagent'][0]
     return eclagent_host
+
+def create_cluster_topology(ctx):
+    topology = defaultdict(lambda : [])
+    with CaptureOutput() as output:
+        with parallel.CommandAgent() as agent:
+                agent.submit_remote_commands(ctx.obj['host_list'], "sudo service hpcc-init {}".format("status"), check=False, silent=True, capture=True)
+    host = None
+    for line in output:
+        if '[' in line:
+            host = line.split('] ')[-1]
+        elif len(line) > 0:
+            component = line.split(' ')[0].replace('my', '')
+            running = 'running' in line
+            topology[component].append((host, running))
+    return dict(topology)
