@@ -18,7 +18,7 @@ thor run --ecl benchmark/SixDegree/CountNumberSets.ecl --wait_until_complete
 thor run --ecl benchmark/SixDegree/BuildIndex.ecl --wait_until_complete
 
 # 6) Run a on-the-fly query without publishing it.
-thor run --ecl benchmark/SixDegree/SearchLinks.ecl --input name 'Everingham, Andi'
+roxie run --ecl benchmark/SixDegree/SearchLinks.ecl --input name 'Everingham, Andi'
 
 # 7) Publish the query
 roxie publish searchlinks --ecl benchmark/SixDegree/SearchLinks.ecl
