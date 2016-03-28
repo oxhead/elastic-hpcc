@@ -9,6 +9,7 @@ import zmq.green as zmq
 
 from elastic.benchmark import query
 
+
 class BenchmarkNode:
 
     def __init__(self, controller_host):
@@ -49,16 +50,69 @@ class BenchmarkController(BenchmarkNode):
             print("Sending job: {}".format(job_id))
             self.sender.send_string(job_id)
 
-    class ResultQueue:
 
-        def __init__(self, receiver):
-            self.receiver = receiver
+    class StatusRecord:
+        def __init__(self):
+            self.status = {}
+        def update_status(self, driver_id):
+            self.status[driver_id] = time.time()
+        def print_status(self):
+            for (driver_id, update_time) in self.status.items():
+                print("{}: {:.1f}".format(driver_id, update_time))
 
-        def dequeue(self):
-            print("Receiving result")
-            report = self.receiver.recv_string()
-            print("Receiving report: {}".format(report))
-            return report
+    class StatisticsCollectorProtocol:
+        def __init__(self, controller):
+            self.controller = controller
+
+        def _receive(self):
+            return self.controller.result_receiver.recv_pyobj()
+
+        def process(self):
+            report = self._receive()
+            print(report)
+
+    class CommandReceiverProtocol:
+        def __init__(self, controller):
+            self.controller = controller
+            self.router = {
+                "register": self.register,
+                "heartbeat": self.heartbeat,
+                "status": self.status,
+                "stop": self.stop,
+            }
+
+        def _receive(self):
+            request_data = self.controller.commander_socket.recv_multipart()
+            #print(request_data)
+            cmd = request_data[0].decode()
+            #print("@", cmd)
+            params = request_data[1:]
+            return (cmd, params)
+
+        def process(self):
+            (cmd, params) = self._receive()
+            print("cmd=", cmd)
+            func = self.router[cmd]
+            result = func(params)
+            if result is None:
+                self.controller.commander_socket.send_string("")
+            else:
+                self.controller.commander_socket.send_pyobj(result)
+
+        def register(self, params):
+            self.controller.started_drivers = self.controller.started_drivers + 1
+            return str(self.controller.started_drivers)
+
+        def heartbeat(self, params):
+            driver = params[0].decode()
+            #print("received hearbeat from ", driver)
+            self.controller.status_record.update_status(driver)
+
+        def status(self, params):
+            return self.controller.status_record.status
+
+        def stop(self, params):
+            self.controller.manager_publisher.send_string("stop")
 
     def __init__(self, controller_host, num_drivers=2, num_quries=1000):
         print("Controller initing")
@@ -68,6 +122,7 @@ class BenchmarkController(BenchmarkNode):
         self.num_quries = num_quries
         self.job_queue_port = 5557
         self.result_queue_port = 5558
+        self.status_record = BenchmarkController.StatusRecord()
 
     def start(self):
         print("Controller starting")
@@ -89,16 +144,11 @@ class BenchmarkController(BenchmarkNode):
         self.commander_socket.bind("tcp://*:10000")
         self.manager_publisher = self.context.socket(zmq.PUB)
         self.manager_publisher.bind("tcp://*:9999")
+
+        command_protocol = BenchmarkController.CommandReceiverProtocol(self)
+
         while True:
-            print("Receiving...")
-            cmd = self.commander_socket.recv_string()
-            self.commander_socket.send_string("")
-            print("[Commander] cmd={}".format(cmd))
-            if cmd == "register":
-                self.started_drivers = self.started_drivers + 1
-                print("# of drivers=", self.started_drivers)
-            elif cmd == "stop":
-                self.manager_publisher.send_string(cmd)
+            command_protocol.process()
             gevent.sleep(1)
 
     def dispatcher(self):
@@ -118,11 +168,11 @@ class BenchmarkController(BenchmarkNode):
         print('collector...')
         self.result_receiver = self.context.socket(zmq.PULL)
         self.result_receiver.bind("tcp://*:{}".format(self.result_queue_port))
-        result_queue = BenchmarkController.ResultQueue(self.result_receiver)
-        num_collected = 0
-        while num_collected < 100:
-            worker_id = result_queue.dequeue()
-            print("Received from {}".format(worker_id))
+
+        reporter_protocol = BenchmarkController.StatisticsCollectorProtocol(self)
+
+        while True:
+            reporter_protocol.process()
 
 
 class BenchmarkDriver(BenchmarkNode):
@@ -137,12 +187,19 @@ class BenchmarkDriver(BenchmarkNode):
     def start(self):
         print("Driver starting at {}".format(self.controller_host))
 
+        # retrieve driver id first
+        self._register()
+
+        self.sender = self.context.socket(zmq.PUSH)
+        self.sender.connect("tcp://{}:5558".format(self.controller_host))
+
         for i in range(self.num_workers):
             self.worker_pool.spawn(self.worker, i)
 
         self.runner_group.spawn(self.retriever)
         self.runner_group.spawn(self.manager)
         self.runner_group.spawn(self.monitor)
+        self.runner_group.spawn(self.heartbeater)
 
         self.runner_group.join()
 
@@ -151,15 +208,21 @@ class BenchmarkDriver(BenchmarkNode):
         self.runner_group.kill()
 
     def _register(self):
-        BenchmarkCommander(self.controller_host).register()
+        self.driver_id = BenchmarkCommander(self.controller_host).register()
+
+    def heartbeater(self):
+        self.heartbeater_socket = self.context.socket(zmq.REQ)
+        self.heartbeater_socket.connect("tcp://{}:10000".format(self.controller_host))
+        heartbeat_protocol = BenchmarkSenderProtocol(self.heartbeater_socket)
+        while True:
+            heartbeat_protocol.heartbeat(self.driver_id)
+            gevent.sleep(5)
 
     def retriever(self):
         self.receiver = self.context.socket(zmq.PULL)
         self.sender = self.context.socket(zmq.PUSH)
         self.receiver.connect("tcp://{}:5557".format(self.controller_host))
         self.sender.connect("tcp://{}:5558".format(self.controller_host))
-
-        self._register()
 
         while True:
             if self.worker_queue.qsize() > self.worker_pool.size * 2:
@@ -171,27 +234,62 @@ class BenchmarkDriver(BenchmarkNode):
             self.worker_queue.put(job_id)
 
     def worker(self, worker_id):
+        reporter_procotol = BenchmarkReporterProtocol(worker_id, self.sender)
         while True:
             worker_item = self.worker_queue.get()
-            print("Running oxie query")
+            print("Running Roxie query")
+            start_time = time.time()
             query.run_query()
-            self.sender.send_string("{} finished {}".format(worker_id, worker_item))
+            elapsed_time = time.time() - start_time
+            reporter_procotol.report(worker_item, elapsed_time)
 
 
-class BenchmarkCommander:
-    def __init__(self, host):
-        self.host = host
-        self.context = zmq.Context()
-        self.commander_socket = self.context.socket(zmq.REQ)
-        self.commander_socket.connect("tcp://{}:10000".format(host))
+class BenchmarkReporterProtocol():
+    def __init__(self, worker_id, result_sender):
+        self.worker_id = worker_id
+        self.result_sender = result_sender
 
-    def msg(self, message):
-        self.commander_socket.send_string(message)
+    def report(self, worker_item, elaspsed_time):
+        statics = {
+            "item": worker_item,
+            "elapsedTime": elaspsed_time
+        }
+        self.result_sender.send_pyobj(statics)
+
+
+class BenchmarkSenderProtocol():
+    def __init__(self, commander_socket):
+        self.commander_socket = commander_socket
+
+    def _send(self, cmd, *param):
+        self.commander_socket.send_multipart([cmd.encode()] + list(param))
+        return self.commander_socket.recv_pyobj()
+
+    def _send_no_reply(self, cmd, *param):
+        self.commander_socket.send_multipart([cmd.encode()] + list(param))
         self.commander_socket.recv_string()
 
     def register(self):
-        self.msg("register")
+        driver_id = self._send("register")
+        print("registered driver id={}".format(driver_id))
+        return driver_id
+
+    def heartbeat(self, driver_id):
+        self._send_no_reply("heartbeat", str(driver_id).encode())
+
+    def status(self):
+        status_record = self._send("status")
+        print(status_record)
 
     def stop(self):
-        self.commander_socket.send_string("stop")
-        self.commander_socket.recv_string()
+        self._send_no_reply("stop")
+
+
+class BenchmarkCommander(BenchmarkSenderProtocol):
+    def __init__(self, host):
+        self.host = host
+        context = zmq.Context()
+        commander_socket = context.socket(zmq.REQ)
+        commander_socket.connect("tcp://{}:10000".format(host))
+        super(BenchmarkCommander, self).__init__(commander_socket)
+
