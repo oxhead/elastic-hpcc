@@ -4,9 +4,11 @@ import traceback
 import datetime
 import logging
 
-from sds.util.monitoringtool import Monitor
+from elastic import base
+from elastic.util.monitoringtool import Monitor
 
-class Benchmark():
+
+class Benchmark:
     def __init__(self, cluster, output_dir, retries=3, **kwargs):
         self.cluster = cluster
         self.output_dir = output_dir
