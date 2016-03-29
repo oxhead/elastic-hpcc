@@ -3,6 +3,7 @@ import time
 import traceback
 import datetime
 import logging
+import random
 
 import yaml
 
@@ -98,4 +99,40 @@ class BenchmarkConfig:
 
     def get_drivers(self):
         return self.get_config("driver")['hosts']
+
+
+class BenchmarkWorkload:
+
+    TYPE_FIXED = 0
+    TYPE_GAUSS = 1
+
+    @staticmethod
+    def new_gauss_workload(num_points, num_mu, num_sigma):
+        workloads = []
+        for i in range(num_points):
+            num_queries = int(random.gauss(num_mu, num_sigma))
+            workloads.append(num_queries)
+        return BenchmarkWorkload(BenchmarkWorkload.TYPE_GAUSS, workloads)
+
+    @staticmethod
+    def new_fixed_workload(num_queries):
+        workloads = [num_queries]
+        return BenchmarkWorkload(BenchmarkWorkload.TYPE_FIXED, workloads)
+
+    def __init__(self, workload_type, workloads):
+        self.workload_type = workload_type
+        self.workloads = workloads
+
+    def next_workload(self):
+        for workload in self.workloads:
+            yield workload
+
+    def get_num_total_queries(self):
+        count = 0
+        for record in self.workloads:
+            print("$", record, count)
+            count += record
+        return count
+
+
 

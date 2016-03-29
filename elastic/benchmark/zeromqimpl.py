@@ -82,25 +82,29 @@ class BenchmarkController(BenchmarkNode):
             self.sender.send_string(job_id)
 
     class BenchmarkRecord:
-        def __init__(self, num_queries):
+        def __init__(self, workload):
             self.time_start = None
             self.time_stop = None
             self.num_finished_jobs = 0
-            self.num_queries = num_queries
+            self.workload = workload
+            self.num_queries = self.workload.get_num_total_queries()
+            print("total queries:", self.num_queries)
 
         def start(self):
+            print("* jobs started")
             self.time_start = time.time()
 
         def stop(self):
+            print("* all jobs completed")
             self.time_stop = time.time()
 
         def report_completion(self):
             self.num_finished_jobs += 1
-            print("# finished:", self.num_finished_jobs)
             if self.is_completed():
                 self.stop()
 
         def is_completed(self):
+            print("@ num_queries={}, nu,_finished_jobs={}".format(self.num_queries, self.num_finished_jobs))
             return self.num_queries == self.num_finished_jobs
 
         def is_started(self):
@@ -187,7 +191,8 @@ class BenchmarkController(BenchmarkNode):
             workload = pickle.loads(params[0])
             print("@ workload=", workload)
             # TODO: need to construct a queue?
-            self.controller.benchmark_record = BenchmarkController.BenchmarkRecord(workload['num_queries'])
+            self.controller.workload = workload
+            self.controller.benchmark_record = BenchmarkController.BenchmarkRecord(self.controller.workload)
             # need to join?
             self.controller.runner_group.spawn(self.controller.dispatcher)
             return "0"
@@ -245,9 +250,11 @@ class BenchmarkController(BenchmarkNode):
         self.benchmark_record.start()
 
         # start to dispatch workload
-        for i in range(self.benchmark_record.num_queries):
-            job_queue.enqueue(str(i))
-            # time.sleep(1)
+        for num_queries in self.workload.next_workload():
+            for i in range(num_queries):
+                job_queue.enqueue(str(i))
+            print("* waiting for 1 seconds")
+            time.sleep(1)
 
         job_sender.close()
 
@@ -378,7 +385,7 @@ class BenchmarkSenderProtocol():
         return report
 
     def submit(self, workload):
-        print(pickle.dumps(workload))
+        print(workload)
         benchmark_id = self._send("submit", pickle.dumps(workload))
         return benchmark_id
 
