@@ -140,9 +140,8 @@ def deploy_config(ctx):
     
 
 @cli.command()
-@click.option('--application', multiple=True, type=click.Choice(['validateanagrams', 'searchlinks', 'fetchpeoplebyzipservice']))
-@click.option('--num_quries', type=int, default=100)
+@click.option('--action', type=click.Choice(['start']))
 @click.pass_context
-def distributed_run(ctx, **kwargs):
-    ctx.config['applications'] = kwargs['application']
-    ctx.config['num_quries'] = kwargs['num_quries']
+def control(ctx, action):
+    commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
+    commander.start()

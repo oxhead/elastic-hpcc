@@ -80,7 +80,6 @@ class BenchmarkController(BenchmarkNode):
             print("Sending job: {}".format(job_id))
             self.sender.send_string(job_id)
 
-
     class StatusRecord:
         def __init__(self):
             self.status = {}
@@ -108,6 +107,7 @@ class BenchmarkController(BenchmarkNode):
                 "register": self.register,
                 "heartbeat": self.heartbeat,
                 "status": self.status,
+                "start": self.start,
                 "stop": self.stop,
             }
 
@@ -141,6 +141,9 @@ class BenchmarkController(BenchmarkNode):
         def status(self, params):
             return self.controller.status_record.status
 
+        def start(self, params):
+            self.controller.benchmark_start = True
+
         def stop(self, params):
             self.controller.manager_publisher.send_string("stop")
 
@@ -155,6 +158,7 @@ class BenchmarkController(BenchmarkNode):
         self.status_record = BenchmarkController.StatusRecord()
 
         self.started_drivers = 0
+        self.benchmark_start = False
 
     def start(self):
         print("Controller starting")
@@ -191,6 +195,9 @@ class BenchmarkController(BenchmarkNode):
 
         # wait for all drivers to start
         while self.started_drivers < self.num_drivers:
+            gevent.sleep(1)
+
+        while not self.benchmark_start:
             gevent.sleep(1)
 
         for i in range(self.num_queries):
@@ -312,6 +319,9 @@ class BenchmarkSenderProtocol():
     def status(self):
         status_record = self._send("status")
         return status_record
+
+    def start(self):
+        self._send_no_reply("start")
 
     def stop(self):
         self._send_no_reply("stop")
