@@ -43,7 +43,7 @@ def query_originalperson():
 
     session = requests.Session()
     r = session.send(prepared)
-    print(r.text)
+    #print(r.text)
 
 
 def query_anagram2():
@@ -62,7 +62,7 @@ def query_anagram2():
     prepared = req.prepare()
     session = requests.Session()
     r = session.send(prepared)
-    print(r.text)
+    #print(r.text)
 
 
 def query_sixdegree():
@@ -81,7 +81,7 @@ def query_sixdegree():
     prepared = req.prepare()
     session = requests.Session()
     r = session.send(prepared)
-    print(r.text)
+    #print(r.text)
 
 
 class ConnectionFactory:

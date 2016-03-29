@@ -140,8 +140,24 @@ def deploy_config(ctx):
     
 
 @cli.command()
-@click.option('--action', type=click.Choice(['start']))
+@click.option('--action', type=click.Choice(['start', "summary"]))
 @click.pass_context
 def control(ctx, action):
     commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
-    commander.start()
+    if action == "start":
+        commander.start()
+    elif action == "summary":
+        print(commander.summary())
+
+@cli.command()
+@click.option('--num_queries', type=int, default=100)
+@click.option('-a', '--application', multiple=True, type=click.Choice(['anagram2', 'originalperson', 'sixdegree']))
+@click.option('-o', '--output_dir', type=click.Path(exists=True, resolve_path=True), default="results")
+@click.pass_context
+def submit(ctx, num_queries, application, output_dir):
+    workload = {
+        "num_queries": num_queries,
+        "applications": application,
+    }
+    commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
+    commander.submit(workload)

@@ -1,3 +1,4 @@
+import pickle
 import time
 import signal
 import sys
@@ -80,11 +81,44 @@ class BenchmarkController(BenchmarkNode):
             print("Sending job: {}".format(job_id))
             self.sender.send_string(job_id)
 
+    class BenchmarkRecord:
+        def __init__(self, num_queries):
+            self.time_start = None
+            self.time_stop = None
+            self.num_finished_jobs = 0
+            self.num_queries = num_queries
+
+        def start(self):
+            self.time_start = time.time()
+
+        def stop(self):
+            self.time_stop = time.time()
+
+        def report_completion(self):
+            self.num_finished_jobs += 1
+            print("# finished:", self.num_finished_jobs)
+            if self.is_completed():
+                self.stop()
+
+        def is_completed(self):
+            return self.num_queries == self.num_finished_jobs
+
+        def is_started(self):
+            return self.time_start is not None
+
+        def get_statistics(self):
+            return {
+                "num_finished_jobs": self.num_finished_jobs,
+                "elapsed_time": self.time_stop - self.time_start,
+            }
+
     class StatusRecord:
         def __init__(self):
             self.status = {}
+
         def update_status(self, driver_id):
             self.status[driver_id] = time.time()
+
         def print_status(self):
             for (driver_id, update_time) in self.status.items():
                 print("{}: {:.1f}".format(driver_id, update_time))
@@ -98,6 +132,7 @@ class BenchmarkController(BenchmarkNode):
 
         def process(self):
             report = self._receive()
+            self.controller.benchmark_record.report_completion()
             print(report)
 
     class CommandReceiverProtocol:
@@ -107,8 +142,9 @@ class BenchmarkController(BenchmarkNode):
                 "register": self.register,
                 "heartbeat": self.heartbeat,
                 "status": self.status,
-                "start": self.start,
                 "stop": self.stop,
+                "summary": self.summary,
+                "submit": self.submit,
             }
 
         def _receive(self):
@@ -141,24 +177,33 @@ class BenchmarkController(BenchmarkNode):
         def status(self, params):
             return self.controller.status_record.status
 
-        def start(self, params):
-            self.controller.benchmark_start = True
-
         def stop(self, params):
             self.controller.manager_publisher.send_string("stop")
+
+        def summary(self, params):
+            return self.controller.benchmark_record.get_statistics()
+
+        def submit(self, params):
+            workload = pickle.loads(params[0])
+            print("@ workload=", workload)
+            # TODO: need to construct a queue?
+            self.controller.benchmark_record = BenchmarkController.BenchmarkRecord(workload['num_queries'])
+            # need to join?
+            self.controller.runner_group.spawn(self.controller.dispatcher)
+            return "0"
 
     def __init__(self, config_path):
         print("Controller initing")
         super(BenchmarkController, self).__init__(config_path)
 
         self.num_drivers = len(self.config.get_drivers())
-        self.num_queries = self.config.get_config("workload")["num_quries"]
+        #self.num_queries = self.config.get_config("workload")["num_quries"]
         self.job_queue_port = self.config.lookup_config(BenchmarkConfig.CONTROLLER_JOB_QUEUE_PORT)
         self.result_queue_port = self.config.lookup_config(BenchmarkConfig.CONTROLLER_REPORT_QUEUE_PORT)
         self.status_record = BenchmarkController.StatusRecord()
 
         self.started_drivers = 0
-        self.benchmark_start = False
+        self.benchmark_record = None
 
     def start(self):
         print("Controller starting")
@@ -166,7 +211,6 @@ class BenchmarkController(BenchmarkNode):
         self.runner_group.spawn(self.monitor)
         self.runner_group.spawn(self.commander)
         self.runner_group.spawn(self.manager)
-        self.runner_group.spawn(self.dispatcher)
         self.runner_group.spawn(self.collector)
 
         self.runner_group.join()
@@ -189,20 +233,23 @@ class BenchmarkController(BenchmarkNode):
 
     def dispatcher(self):
         print('dispatcher...')
-        self.job_sender = self.context.socket(zmq.PUSH)
-        self.job_sender.bind("tcp://*:{}".format(self.config.lookup_config(BenchmarkConfig.CONTROLLER_JOB_QUEUE_PORT)))
-        job_queue = BenchmarkController.JobQueue(self.job_sender)
+        job_sender = self.context.socket(zmq.PUSH)
+        job_sender.bind("tcp://*:{}".format(self.config.lookup_config(BenchmarkConfig.CONTROLLER_JOB_QUEUE_PORT)))
+        job_queue = BenchmarkController.JobQueue(job_sender)
 
         # wait for all drivers to start
         while self.started_drivers < self.num_drivers:
             gevent.sleep(1)
 
-        while not self.benchmark_start:
-            gevent.sleep(1)
+        # start the counter
+        self.benchmark_record.start()
 
-        for i in range(self.num_queries):
+        # start to dispatch workload
+        for i in range(self.benchmark_record.num_queries):
             job_queue.enqueue(str(i))
             # time.sleep(1)
+
+        job_sender.close()
 
     def collector(self):
         print('collector...')
@@ -325,6 +372,15 @@ class BenchmarkSenderProtocol():
 
     def stop(self):
         self._send_no_reply("stop")
+
+    def summary(self):
+        report = self._send("summary")
+        return report
+
+    def submit(self, workload):
+        print(pickle.dumps(workload))
+        benchmark_id = self._send("submit", pickle.dumps(workload))
+        return benchmark_id
 
 
 class BenchmarkCommander(BenchmarkSenderProtocol):
