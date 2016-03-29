@@ -1,5 +1,10 @@
 import json
+import random
 import requests
+
+from gevent import monkey
+
+monkey.patch_all()
 
 
 def pretty_print_POST(req):
@@ -19,7 +24,7 @@ def pretty_print_POST(req):
     ))
 
 
-def run_query():
+def query_originalperson():
     headers = {
         "Content-Type": "application/json"
     }
@@ -31,7 +36,6 @@ def run_query():
         }
     }
 
-
     req = requests.Request('POST', url, headers=headers, data=json.dumps(payload))
     prepared = req.prepare()
 
@@ -39,4 +43,67 @@ def run_query():
 
     session = requests.Session()
     r = session.send(prepared)
-    #print(r.text)
+    print(r.text)
+
+
+def query_anagram2():
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    url = "http://152.46.16.135:8002/WsEcl/json/query/roxie/validateanagrams"
+    payload = {
+        "validateanagrams": {
+            "word": "test"
+        }
+    }
+
+    req = requests.Request('POST', url, headers=headers, data=json.dumps(payload))
+    prepared = req.prepare()
+    session = requests.Session()
+    r = session.send(prepared)
+    print(r.text)
+
+
+def query_sixdegree():
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    url = "http://152.46.16.135:8002/WsEcl/json/query/roxie/searchlinks"
+    payload = {
+        "searchlinks": {
+            "name": "Everingham, Andi"
+        }
+    }
+
+    req = requests.Request('POST', url, headers=headers, data=json.dumps(payload))
+    prepared = req.prepare()
+    session = requests.Session()
+    r = session.send(prepared)
+    print(r.text)
+
+
+class ConnectionFactory:
+
+    @staticmethod
+    def new():
+        session = requests.Session()
+        session.headers = {
+            "Content-Type": "application/json"
+        }
+        return session
+
+
+class QueryFactory:
+    def __init__(self, applications):
+        self.applications = applications
+        self.router_table = {
+            "anagram2": query_anagram2,
+            "originalperson": query_originalperson,
+            "sixdegree": query_sixdegree,
+        }
+
+    def next(self):
+        application = random.choice(self.applications)
+        return self.router_table[application.lower()]

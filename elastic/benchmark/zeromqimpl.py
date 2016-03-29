@@ -23,6 +23,7 @@ class BenchmarkConfig(base.BenchmarkConfig):
     DRIVER_NUM_WORKER = "driver.num_workers"
 
     WORKLOAD_NUM_QUERIES = "workload.num_queries"
+    WORKLOAD_APPLICATIONS = "workload.applications"
 
     def parse_file(config_path):
         with open(config_path, 'r') as f:
@@ -180,7 +181,7 @@ class BenchmarkController(BenchmarkNode):
 
         while True:
             command_protocol.process()
-            gevent.sleep(1)
+            #gevent.sleep(1)
 
     def dispatcher(self):
         print('dispatcher...')
@@ -188,6 +189,7 @@ class BenchmarkController(BenchmarkNode):
         self.job_sender.bind("tcp://*:{}".format(self.config.lookup_config(BenchmarkConfig.CONTROLLER_JOB_QUEUE_PORT)))
         job_queue = BenchmarkController.JobQueue(self.job_sender)
 
+        # wait for all drivers to start
         while self.started_drivers < self.num_drivers:
             gevent.sleep(1)
 
@@ -263,12 +265,13 @@ class BenchmarkDriver(BenchmarkNode):
             self.worker_queue.put(job_id)
 
     def worker(self, worker_id):
+        query_factory = query.QueryFactory(self.config.lookup_config(BenchmarkConfig.WORKLOAD_APPLICATIONS))
         reporter_procotol = BenchmarkReporterProtocol(worker_id, self.sender)
         while True:
             worker_item = self.worker_queue.get()
             print("Running Roxie query")
             start_time = time.time()
-            query.run_query()
+            query_factory.next()()
             elapsed_time = time.time() - start_time
             reporter_procotol.report(worker_item, elapsed_time)
 
@@ -308,7 +311,7 @@ class BenchmarkSenderProtocol():
 
     def status(self):
         status_record = self._send("status")
-        print(status_record)
+        return status_record
 
     def stop(self):
         self._send_no_reply("stop")
