@@ -139,3 +139,7 @@ build/
 
 # virtualenv
 .venv/
+
+# related to this project
+logs/
+conf/benchmark.yaml

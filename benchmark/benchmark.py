@@ -5,9 +5,12 @@ import random
 import click
 import executor
 from executor import execute
+import yaml
 
 import parallel
 from ecl import convert_to_query_xml
+from elastic.benchmark.zeromqimpl import *
+from elastic.util import network as network_util
 
 def get_word_list():
     return word_list
@@ -36,19 +39,22 @@ actor_list = []
 with open(actor_file) as f:
     actor_list = [actor.rstrip() for actor in f.read().splitlines()]
 
+
 @click.group()
+@click.option('--config', type=click.Path(exists=True, resolve_path=True), default="conf/benchmark.yaml")
 @click.pass_context
 def cli(ctx, **kwargs):
     """This is a command line tool that works for VCL instances
     """
     ctx.obj = kwargs
+    if ctx.obj['config'] is not None:
+        ctx.obj['_config'] = BenchmarkConfig.parse_file(ctx.obj['config'])
 
 @cli.command()
 @click.option('--dataset', multiple=True, default=['anagram2', 'originalperson', 'sixdegree'])
 @click.pass_context
 def download_dataset(ctx, dataset):
     print(dataset)
-    return
     dataset_dir = os.path.join(get_script_dir(), "dataset")
     if 'anagram2' in dataset:
         anagram2_dataset_dir = os.path.join(dataset_dir, "Anagram2")
@@ -67,65 +73,63 @@ def download_dataset(ctx, dataset):
         execute("zcat {}/actors.list.gz > {}/actors.list".format(sixdegree_dataset_dir, sixdegree_dataset_dir))
         execute("zcat {}/actresses.list.gz > {}/actresses.list".format(sixdegree_dataset_dir, sixdegree_dataset_dir))
 
-@cli.command()
-@click.option('--times', type=int, default=100)
-@click.option('--concurrency', type=int, default=1)
-@click.option('--query', multiple=True, type=click.Choice(['validateanagrams', 'searchlinks', 'fetchpeoplebyzipservice']))
-@click.pass_context
-def stress(ctx, times, concurrency, query):
-    click.echo('Benchmark: stress test')
-    for i in range(times):
-        agent = parallel.CommandAgent(show_result=False, concurrency=concurrency)
-        query_records = []
-        for j in range(concurrency):
-            query_cmd = random_query(query)
-            cmd_id = "i{}c{}".format(i, j) 
-            agent.submit(cmd_id, query_cmd, silent=True)
-            query_records.append((cmd_id, query_cmd))
-        agent.run()
-        status_records = agent.status()
-        for j in range(len(query_records)):
-            (cmd_id, selected_query) = query_records[j]
-            print("Iteration {}, Thread {}: {}".format(i+1, j+1, status_records[cmd_id]))
-            print("\t{}".format(selected_query))
-        #print("[{}] {}: {}".format(i+1, selected_query, status))
-        #print("\t{}".format(cmd))
-
-def random_query(query_list):
-    selected_query = random.choice(query_list)
-    cmd = None
-    if selected_query == 'validateanagrams':
-        word = random.choice(get_word_list())
-        cmd = "roxie query validateanagrams --input word {}".format(word)
-    elif selected_query == 'searchlinks':
-        actor = random.choice(get_actor_list())
-        cmd = "roxie query searchlinks --input name '{}'".format(actor)
-    elif selected_query == 'fetchpeoplebyzipservice':
-        zipcode = random.choice(get_zipcode_list())
-        cmd = "roxie query fetchpeoplebyzipservice --input ZIPValue {}".format(zipcode)
-    return cmd
 
 @cli.command()
-@click.option('--hosts', type=click.Path(exists=True, resolve_path=True), default='.benchmark_hosts')
-@click.option('--query', type=click.Choice(['validateanagrams', 'searchlinks', 'fetchpeoplebyzipservice']))
-@click.option('--input', '-i', multiple=True, type=(str, str))
-@click.option('--times', type=int, default=100)
-@click.option('--concurrency', type=int, default=1)
+@click.option('--action', type=click.Choice(['start', 'stop', 'status']))
 @click.pass_context
-def distributed_stress(ctx, hosts, query, input, times, concurrency):
-    num_hosts = None
-    with open(hosts, 'r') as f:
-        num_hosts = len(f.read().splitlines())
-    if num_hosts < concurrency:
-        click.echo('too few machines to run benchmark')
-        ctx.abort()
-    selected_hosts = []
-    with open(hosts, 'r') as f:
-        selected_hosts = random.sample(f.read().splitlines(), concurrency)
+def service(ctx, action):
+    if action == "start":
+         with parallel.CommandAgent(show_result=False) as agent:
+             # TODO: a better way? Should not use fixed directory
+             agent.submit_remote_command(ctx.obj['_config'].get_controller(), 'bash ~/elastic-hpcc/script/start_controller.sh')
+             for driver_node in ctx.obj['_config'].get_drivers():
+                 print(driver_node)
+                 agent.submit_remote_command(driver_node, 'bash ~/elastic-hpcc/script/start_driver.sh')
+    else:
+        commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
+        if action == "stop":
+            commander.stop()
+        elif action == "status":
+            print(commander.status())
+        
 
-    input_str = convert_to_query_xml(input)
-    with parallel.CommandAgent(show_result=False, concurrency=num_hosts) as agent: 
-        for host in selected_hosts:
-            print(host)
-            print('for (( i=0;i<{};i++ )); do /opt/HPCCSystems/bin/ecl run roxie --server=10.25.11.81 {} {} >> /tmp/results.txt; done'.format(times, query, input_str))
-            agent.submit_remote_command(host, 'for (( i=0;i<{};i++ )); do /opt/HPCCSystems/bin/ecl run roxie --server=10.25.11.81 {} {} >> /tmp/results.txt; done'.format(times, query, input_str), silent=True, capture=False)
+@cli.command()
+@click.option('-n', '--node', multiple=True)
+@click.pass_context
+def install_package(ctx, node):
+    deploy_set = set()
+    if not network_util.is_local_ip(ctx.obj['_config'].get_controller()):
+        deploy_set.add(ctx.obj['_config'].get_controller())
+    for driver_node in ctx.obj['_config'].get_drivers():
+        if not network_util.is_local_ip(driver_node):
+            deploy_set.add(driver_node)
+    for host in deploy_set:
+        with parallel.CommandAgent(concurrency=len(host), show_result=False) as agent:
+            agent.submit_remote_command(host, "cd ~/elastic-hpcc; source init.sh")
+
+@cli.command()
+@click.option('-n', '--node', multiple=True)
+@click.pass_context
+def deploy(ctx, node):
+    deploy_set = set()
+    if not network_util.is_local_ip(ctx.obj['_config'].get_controller()):
+        deploy_set.add(ctx.obj['_config'].get_controller())
+    for driver_node in ctx.obj['_config'].get_drivers():
+        if not network_util.is_local_ip(driver_node):
+            deploy_set.add(driver_node)
+    for host in deploy_set:
+        with parallel.CommandAgent(concurrency=len(host), show_result=False) as agent:
+             # TODO: a better way? Should not use fixed directory
+             agent.submit_command('rsync -avz --exclude elastic-hpcc/HPCC-Platform --exclude elastic-hpcc/benchmark --exclude elastic-hpcc/.git --exclude elastic-hpcc/.venv ~/elastic-hpcc {}:~/'.format(host)) 
+    
+        with parallel.CommandAgent(concurrency=len(host), show_result=False) as agent:
+             agent.submit_command('rsync ~/elastic-hpcc/benchmark/*.py {}:~/elastic-hpcc/benchmark'.format(host))
+    
+
+@cli.command()
+@click.option('--application', multiple=True, type=click.Choice(['validateanagrams', 'searchlinks', 'fetchpeoplebyzipservice']))
+@click.option('--num_quries', type=int, default=100)
+@click.pass_context
+def distributed_run(ctx, **kwargs):
+    ctx.config['applications'] = kwargs['application']
+    ctx.config['num_quries'] = kwargs['num_quries']

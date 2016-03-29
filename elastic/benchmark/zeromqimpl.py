@@ -5,15 +5,44 @@ import sys
 import gevent
 import gevent.pool
 import gevent.queue
+import yaml
 import zmq.green as zmq
 
 from elastic.benchmark import query
+from elastic.benchmark import base
 
+
+class BenchmarkConfig(base.BenchmarkConfig):
+
+    CONTROLLER_HOST = "controller.host"
+    CONTROLLER_COMMANDER_PORT = "controller.commander.port"
+    CONTROLLER_JOB_QUEUE_PORT = "controller.job_queue.port"
+    CONTROLLER_REPORT_QUEUE_PORT = "controller.report_queue.port"
+    CONTROLLER_MANAGER_PORT = "controller.manager.port"
+
+    DRIVER_NUM_WORKER = "driver.num_workers"
+
+    WORKLOAD_NUM_QUERIES = "workload.num_queries"
+
+    def parse_file(config_path):
+        with open(config_path, 'r') as f:
+            return BenchmarkConfig(yaml.load(f))
+
+    def __init__(self, config):
+        self.config = config
+
+    def lookup_config(self, key, default_value=None):
+        key_list = key.split(".")
+        current_config = self.config
+        for k in key_list:
+            current_config = current_config[k]
+        return current_config
 
 class BenchmarkNode:
 
-    def __init__(self, controller_host):
-        self.controller_host = controller_host;
+    def __init__(self, config_path):
+        print("@", config_path)
+        self.config = BenchmarkConfig.parse_file(config_path)
         self.context = zmq.Context()
         self.runner_group = gevent.pool.Group()
 
@@ -23,7 +52,7 @@ class BenchmarkNode:
     def manager(self):
         self.manager_subscriber = self.context.socket(zmq.SUB)
         self.manager_subscriber.setsockopt(zmq.SUBSCRIBE, b'')
-        self.manager_subscriber.connect("tcp://{}:9999".format(self.controller_host))
+        self.manager_subscriber.connect("tcp://{}:{}".format(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_MANAGER_PORT)))
         while True:
             cmd = self.manager_subscriber.recv_string()
             print("Received command: {}".format(cmd))
@@ -114,15 +143,17 @@ class BenchmarkController(BenchmarkNode):
         def stop(self, params):
             self.controller.manager_publisher.send_string("stop")
 
-    def __init__(self, controller_host, num_drivers=2, num_quries=1000):
+    def __init__(self, config_path):
         print("Controller initing")
-        super(BenchmarkController, self).__init__(controller_host)
-        self.num_drivers = num_drivers
-        self.started_drivers = 0
-        self.num_quries = num_quries
-        self.job_queue_port = 5557
-        self.result_queue_port = 5558
+        super(BenchmarkController, self).__init__(config_path)
+
+        self.num_drivers = len(self.config.get_drivers())
+        self.num_queries = self.config.get_config("workload")["num_quries"]
+        self.job_queue_port = self.config.lookup_config(BenchmarkConfig.CONTROLLER_JOB_QUEUE_PORT)
+        self.result_queue_port = self.config.lookup_config(BenchmarkConfig.CONTROLLER_REPORT_QUEUE_PORT)
         self.status_record = BenchmarkController.StatusRecord()
+
+        self.started_drivers = 0
 
     def start(self):
         print("Controller starting")
@@ -141,9 +172,9 @@ class BenchmarkController(BenchmarkNode):
     def commander(self):
         print('commander...')
         self.commander_socket = self.context.socket(zmq.REP)
-        self.commander_socket.bind("tcp://*:10000")
+        self.commander_socket.bind("tcp://*:{}".format(self.config.lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT)))
         self.manager_publisher = self.context.socket(zmq.PUB)
-        self.manager_publisher.bind("tcp://*:9999")
+        self.manager_publisher.bind("tcp://*:{}".format(self.config.lookup_config(BenchmarkConfig.CONTROLLER_MANAGER_PORT)))
 
         command_protocol = BenchmarkController.CommandReceiverProtocol(self)
 
@@ -154,20 +185,20 @@ class BenchmarkController(BenchmarkNode):
     def dispatcher(self):
         print('dispatcher...')
         self.job_sender = self.context.socket(zmq.PUSH)
-        self.job_sender.bind("tcp://*:{}".format(self.job_queue_port))
+        self.job_sender.bind("tcp://*:{}".format(self.config.lookup_config(BenchmarkConfig.CONTROLLER_JOB_QUEUE_PORT)))
         job_queue = BenchmarkController.JobQueue(self.job_sender)
 
         while self.started_drivers < self.num_drivers:
             gevent.sleep(1)
 
-        for i in range(self.num_quries):
+        for i in range(self.num_queries):
             job_queue.enqueue(str(i))
             # time.sleep(1)
 
     def collector(self):
         print('collector...')
         self.result_receiver = self.context.socket(zmq.PULL)
-        self.result_receiver.bind("tcp://*:{}".format(self.result_queue_port))
+        self.result_receiver.bind("tcp://*:{}".format(self.config.lookup_config(BenchmarkConfig.CONTROLLER_REPORT_QUEUE_PORT)))
 
         reporter_protocol = BenchmarkController.StatisticsCollectorProtocol(self)
 
@@ -177,21 +208,21 @@ class BenchmarkController(BenchmarkNode):
 
 class BenchmarkDriver(BenchmarkNode):
 
-    def __init__(self, controller_host, num_workers=8):
-        super(BenchmarkDriver, self).__init__(controller_host)
+    def __init__(self, config_path):
+        super(BenchmarkDriver, self).__init__(config_path)
         print("Driver initing")
-        self.num_workers = num_workers
+        self.num_workers = self.config.lookup_config(BenchmarkConfig.DRIVER_NUM_WORKER)
         self.worker_pool = gevent.pool.Pool(self.num_workers)
         self.worker_queue = gevent.queue.Queue()
 
     def start(self):
-        print("Driver starting at {}".format(self.controller_host))
+        print("Driver starting")
 
         # retrieve driver id first
         self._register()
 
         self.sender = self.context.socket(zmq.PUSH)
-        self.sender.connect("tcp://{}:5558".format(self.controller_host))
+        self.sender.connect("tcp://{}:{}".format(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_REPORT_QUEUE_PORT)))
 
         for i in range(self.num_workers):
             self.worker_pool.spawn(self.worker, i)
@@ -208,11 +239,11 @@ class BenchmarkDriver(BenchmarkNode):
         self.runner_group.kill()
 
     def _register(self):
-        self.driver_id = BenchmarkCommander(self.controller_host).register()
+        self.driver_id = BenchmarkCommander(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT)).register()
 
     def heartbeater(self):
         self.heartbeater_socket = self.context.socket(zmq.REQ)
-        self.heartbeater_socket.connect("tcp://{}:10000".format(self.controller_host))
+        self.heartbeater_socket.connect("tcp://{}:{}".format(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT)))
         heartbeat_protocol = BenchmarkSenderProtocol(self.heartbeater_socket)
         while True:
             heartbeat_protocol.heartbeat(self.driver_id)
@@ -220,9 +251,7 @@ class BenchmarkDriver(BenchmarkNode):
 
     def retriever(self):
         self.receiver = self.context.socket(zmq.PULL)
-        self.sender = self.context.socket(zmq.PUSH)
-        self.receiver.connect("tcp://{}:5557".format(self.controller_host))
-        self.sender.connect("tcp://{}:5558".format(self.controller_host))
+        self.receiver.connect("tcp://{}:{}".format(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_JOB_QUEUE_PORT)))
 
         while True:
             if self.worker_queue.qsize() > self.worker_pool.size * 2:
@@ -286,10 +315,10 @@ class BenchmarkSenderProtocol():
 
 
 class BenchmarkCommander(BenchmarkSenderProtocol):
-    def __init__(self, host):
+    def __init__(self, host, port):
         self.host = host
         context = zmq.Context()
         commander_socket = context.socket(zmq.REQ)
-        commander_socket.connect("tcp://{}:10000".format(host))
+        commander_socket.connect("tcp://{}:{}".format(host, port))
         super(BenchmarkCommander, self).__init__(commander_socket)
 

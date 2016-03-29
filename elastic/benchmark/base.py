@@ -4,6 +4,8 @@ import traceback
 import datetime
 import logging
 
+import yaml
+
 from elastic import base
 from elastic.util.monitoringtool import Monitor
 
@@ -71,3 +73,29 @@ class Benchmark:
     def logger(self):
         name = '.'.join([__name__, self.__class__.__name__])
         return logging.getLogger(name)
+
+
+class BenchmarkConfig:
+
+    def parse_file(config_path):
+        with open(config_path, 'r') as f:
+            return BenchmarkConfig(yaml.load(f))
+
+    def __init__(self, config):
+        self.config = config
+
+    def get_config(self, key, default_value=None):
+        if key not in self.config:
+            return default_value
+        else:
+            return self.config[key]
+
+    def set_config(self, key, value):
+        self.config[key] = value
+
+    def get_controller(self):
+        return self.get_config("controller")['host']
+
+    def get_drivers(self):
+        return self.get_config("driver")['hosts']
+
