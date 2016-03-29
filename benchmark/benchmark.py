@@ -84,7 +84,7 @@ def service(ctx, action):
              agent.submit_remote_command(ctx.obj['_config'].get_controller(), 'bash ~/elastic-hpcc/script/start_controller.sh')
              for driver_node in ctx.obj['_config'].get_drivers():
                  print(driver_node)
-                 agent.submit_remote_command(driver_node, 'bash ~/elastic-hpcc/script/start_driver.sh')
+                 agent.submit_remote_command(driver_node, 'bash ~/elastic-hpcc/script/start_driver.sh', silent=True)
     else:
         commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
         if action == "stop":
@@ -103,27 +103,40 @@ def install_package(ctx, node):
     for driver_node in ctx.obj['_config'].get_drivers():
         if not network_util.is_local_ip(driver_node):
             deploy_set.add(driver_node)
-    for host in deploy_set:
-        with parallel.CommandAgent(concurrency=len(host), show_result=False) as agent:
-            agent.submit_remote_command(host, "cd ~/elastic-hpcc; source init.sh")
+    with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
+        for host in deploy_set:
+            agent.submit_remote_command(host, "cd ~/elastic-hpcc; source init.sh", silent=True)
 
 @cli.command()
-@click.option('-n', '--node', multiple=True)
 @click.pass_context
-def deploy(ctx, node):
+def deploy(ctx):
     deploy_set = set()
     if not network_util.is_local_ip(ctx.obj['_config'].get_controller()):
         deploy_set.add(ctx.obj['_config'].get_controller())
     for driver_node in ctx.obj['_config'].get_drivers():
         if not network_util.is_local_ip(driver_node):
             deploy_set.add(driver_node)
-    for host in deploy_set:
-        with parallel.CommandAgent(concurrency=len(host), show_result=False) as agent:
+    with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
+        for host in deploy_set:
              # TODO: a better way? Should not use fixed directory
              agent.submit_command('rsync -avz --exclude elastic-hpcc/HPCC-Platform --exclude elastic-hpcc/benchmark --exclude elastic-hpcc/.git --exclude elastic-hpcc/.venv ~/elastic-hpcc {}:~/'.format(host)) 
-    
-        with parallel.CommandAgent(concurrency=len(host), show_result=False) as agent:
+
+    with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
+        for host in deploy_set:
              agent.submit_command('rsync ~/elastic-hpcc/benchmark/*.py {}:~/elastic-hpcc/benchmark'.format(host))
+
+@cli.command()
+@click.pass_context
+def deploy_config(ctx):
+    deploy_set = set()
+    if not network_util.is_local_ip(ctx.obj['_config'].get_controller()):
+        deploy_set.add(ctx.obj['_config'].get_controller())
+    for driver_node in ctx.obj['_config'].get_drivers():
+        if not network_util.is_local_ip(driver_node):
+            deploy_set.add(driver_node)
+    with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
+        for host in deploy_set:
+            agent.submit_command("scp ~/elastic-hpcc/conf/benchmark.yaml {}:~/elastic-hpcc/conf".format(host))
     
 
 @cli.command()
