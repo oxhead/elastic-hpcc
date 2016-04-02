@@ -9,7 +9,7 @@ import yaml
 
 import parallel
 from ecl import convert_to_query_xml
-from elastic.benchmark.base import BenchmarkWorkload
+from elastic.benchmark import workload
 from elastic.benchmark.zeromqimpl import *
 from elastic.util import network as network_util
 
@@ -151,23 +151,13 @@ def info(ctx, action):
         print(commander.summary())
 
 @cli.command()
-@click.option('--num_queries', type=int, default=100)
-@click.option('-a', '--application', multiple=True, type=click.Choice(['anagram2', 'originalperson', 'sixdegree']))
+@click.argument('config', type=click.Path(exists=True, resolve_path=True))
 @click.option('-o', '--output_dir', type=click.Path(exists=True, resolve_path=True), default="results")
 @click.pass_context
-def submit(ctx, num_queries, application, output_dir):
-    workload = BenchmarkWorkload.new_fixed_workload(num_queries)
+def submit(ctx, config, output_dir):
+    w = workload.Workload.from_config(config)
+    #import pickle
+    #pickle.dumps(w, pickle.DEFAULT_PROTOCOL)
+    #return
     commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
-    commander.submit(workload)
-
-
-@cli.command()
-@click.option('--num_points', type=int, default=20)
-@click.option('--mu', type=int, default=10)
-@click.option('--sigma', type=int, default=5)
-@click.option('-o', '--output_dir', type=click.Path(exists=True, resolve_path=True), default="results")
-@click.pass_context
-def submit_gauss(ctx, num_points, mu, sigma, output_dir):
-    workload = BenchmarkWorkload.new_gauss_workload(num_points, mu, sigma) 
-    commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
-    commander.submit(workload)
+    commander.submit(w)

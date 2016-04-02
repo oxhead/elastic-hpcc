@@ -46,64 +46,19 @@ def query_originalperson():
     #print(r.text)
 
 
-def query_anagram2():
+def new_session():
+    return requests.Session()
+
+
+def run_query(session, query_name, endpoint, query_key, key):
     headers = {
         "Content-Type": "application/json"
     }
-
-    url = "http://152.46.16.135:8002/WsEcl/json/query/roxie/validateanagrams"
     payload = {
-        "validateanagrams": {
-            "word": "test"
+        query_name: {
+            query_key: key
         }
     }
-
-    req = requests.Request('POST', url, headers=headers, data=json.dumps(payload))
+    req = requests.Request('POST', endpoint, headers=headers, data=json.dumps(payload))
     prepared = req.prepare()
-    session = requests.Session()
-    r = session.send(prepared)
-    #print(r.text)
-
-
-def query_sixdegree():
-    headers = {
-        "Content-Type": "application/json"
-    }
-
-    url = "http://152.46.16.135:8002/WsEcl/json/query/roxie/searchlinks"
-    payload = {
-        "searchlinks": {
-            "name": "Everingham, Andi"
-        }
-    }
-
-    req = requests.Request('POST', url, headers=headers, data=json.dumps(payload))
-    prepared = req.prepare()
-    session = requests.Session()
-    r = session.send(prepared)
-    #print(r.text)
-
-
-class ConnectionFactory:
-
-    @staticmethod
-    def new():
-        session = requests.Session()
-        session.headers = {
-            "Content-Type": "application/json"
-        }
-        return session
-
-
-class QueryFactory:
-    def __init__(self, applications):
-        self.applications = applications
-        self.router_table = {
-            "anagram2": query_anagram2,
-            "originalperson": query_originalperson,
-            "sixdegree": query_sixdegree,
-        }
-
-    def next(self):
-        application = random.choice(self.applications)
-        return self.router_table[application.lower()]
+    session.send(prepared)

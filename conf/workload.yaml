@@ -1,0 +1,36 @@
+workload:
+    type: poisson
+    num_queries: 100
+    period: 20
+    distribution:
+        type: pareto
+        alpha: 3
+    selection:
+        type: uniform
+        percentage:
+            anagram2: 0.2
+            originalperson: 0.3
+            sixdegree: 0.5
+    applications:
+        anagram2:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/validateanagrams
+            query_name: validateanagrams
+            query_key: word
+            key_list: /home/chsu6/elastic-hpcc/benchmark/dataset/word_list.txt
+            #key_list:
+            #    - test
+            #    - computer
+            #    - network
+        originalperson:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/fetchpeoplebyzipservice
+            query_name: fetchpeoplebyzipservice
+            query_key: zipvalue
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/zipcode_list.txt
+        sixdegree:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/searchlinks
+            query_name: searchlinks
+            query_key: name
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/actor_list.txt
+            distribution:
+                type: pareto
+                alpha: 3

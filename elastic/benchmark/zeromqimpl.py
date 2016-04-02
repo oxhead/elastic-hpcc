@@ -1,3 +1,4 @@
+from enum import Enum
 import pickle
 import time
 import signal
@@ -10,10 +11,10 @@ import yaml
 import zmq.green as zmq
 
 from elastic.benchmark import query
-from elastic.benchmark import base
+from elastic.benchmark import config
 
 
-class BenchmarkConfig(base.BenchmarkConfig):
+class BenchmarkConfig(config.BaseConfig):
 
     CONTROLLER_HOST = "controller.host"
     CONTROLLER_COMMANDER_PORT = "controller.commander.port"
@@ -26,19 +27,34 @@ class BenchmarkConfig(base.BenchmarkConfig):
     WORKLOAD_NUM_QUERIES = "workload.num_queries"
     WORKLOAD_APPLICATIONS = "workload.applications"
 
-    def parse_file(config_path):
-        with open(config_path, 'r') as f:
-            return BenchmarkConfig(yaml.load(f))
 
-    def __init__(self, config):
-        self.config = config
+class SendProtocolHeader(Enum):
+    admin_start = 0
+    admin_stop = 1
+    admin_status = 2
+    admin_update_workload = 3
 
-    def lookup_config(self, key, default_value=None):
-        key_list = key.split(".")
-        current_config = self.config
-        for k in key_list:
-            current_config = current_config[k]
-        return current_config
+    membership_heartbeat = 11
+    membership_register = 12
+    membership_ready = 13
+
+    benchmark_submit = 21
+    benchmark_summary = 22
+    benchmark_workload = 23
+
+    report_done = 31
+
+
+class ReceiveProtocolHeader(Enum):
+    successful = 0
+    failed = 1
+
+
+class BenchmarkProtocol:
+    def __init__(self, header, payloads=None):
+        self.header = header
+        self.payloads = payloads
+
 
 class BenchmarkNode:
 
@@ -51,22 +67,27 @@ class BenchmarkNode:
     def stop(self):
         raise Exception("stop method is not implemented yet")
 
+    def update_workload(self, workload):
+        raise Exception("update_workload is not implemented yet")
+
     def manager(self):
         self.manager_subscriber = self.context.socket(zmq.SUB)
         self.manager_subscriber.setsockopt(zmq.SUBSCRIBE, b'')
         self.manager_subscriber.connect("tcp://{}:{}".format(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_MANAGER_PORT)))
         while True:
-            cmd = self.manager_subscriber.recv_string()
-            print("Received command: {}".format(cmd))
-            if cmd == "stop":
-                self.stop();
+            cmd_protocol = self.manager_subscriber.recv_pyobj()
+            print("manager:", cmd_protocol.header)
+            if cmd_protocol.header is SendProtocolHeader.admin_stop:
+                self.stop()
+            elif cmd_protocol.header is SendProtocolHeader.admin_update_workload:
+                self.update_workload(cmd_protocol.payloads)
 
     def monitor(self):
         while True:
             print("monitoring...")
             for runner in self.runner_group.greenlets:
                 if not bool(runner):
-                    raise Exception("Abnomal greenlet found")
+                    raise Exception("Abnormal greenlet found")
             gevent.sleep(5)
 
 
@@ -85,10 +106,9 @@ class BenchmarkController(BenchmarkNode):
         def __init__(self, workload):
             self.time_start = None
             self.time_stop = None
-            self.num_finished_jobs = 0
             self.workload = workload
-            self.num_queries = self.workload.get_num_total_queries()
-            print("total queries:", self.num_queries)
+            self.query_count = 0
+            self.num_finished_jobs = 0
 
         def start(self):
             print("* jobs started")
@@ -98,14 +118,17 @@ class BenchmarkController(BenchmarkNode):
             print("* all jobs completed")
             self.time_stop = time.time()
 
+        def add_workload(self, num_queries):
+            self.query_count += num_queries
+
         def report_completion(self):
             self.num_finished_jobs += 1
             if self.is_completed():
                 self.stop()
 
         def is_completed(self):
-            print("@ num_queries={}, nu,_finished_jobs={}".format(self.num_queries, self.num_finished_jobs))
-            return self.num_queries == self.num_finished_jobs
+            print("@ num_queries={}, num_finished_jobs={}".format(self.query_count, self.num_finished_jobs))
+            return self.query_count == self.num_finished_jobs
 
         def is_started(self):
             return self.time_start is not None
@@ -143,59 +166,65 @@ class BenchmarkController(BenchmarkNode):
         def __init__(self, controller):
             self.controller = controller
             self.router = {
-                "register": self.register,
-                "heartbeat": self.heartbeat,
-                "status": self.status,
-                "stop": self.stop,
-                "summary": self.summary,
-                "submit": self.submit,
+                SendProtocolHeader.membership_register: self.register,
+                SendProtocolHeader.membership_heartbeat: self.heartbeat,
+                SendProtocolHeader.membership_ready: self.ready,
+                SendProtocolHeader.admin_status: self.status,
+                SendProtocolHeader.admin_stop: self.stop,
+                SendProtocolHeader.benchmark_summary: self.summary,
+                SendProtocolHeader.benchmark_submit: self.submit,
             }
 
-        def _receive(self):
-            request_data = self.controller.commander_socket.recv_multipart()
-            #print(request_data)
-            cmd = request_data[0].decode()
-            #print("@", cmd)
-            params = request_data[1:]
-            return (cmd, params)
-
         def process(self):
-            (cmd, params) = self._receive()
-            print("cmd=", cmd)
-            func = self.router[cmd]
-            result = func(params)
-            if result is None:
-                self.controller.commander_socket.send_string("")
-            else:
-                self.controller.commander_socket.send_pyobj(result)
+            cmd_protocol = self.controller.commander_socket.recv_pyobj()
+            print("cmd=", cmd_protocol.header)
+            print("payload=", cmd_protocol.payloads)
+            reply_protocol = None
+            try:
+                result = self.router[cmd_protocol.header](cmd_protocol.payloads)
+                print("result=", result)
+                reply_protocol = BenchmarkProtocol(ReceiveProtocolHeader.successful, result)
+            except Exception as e:
+                print(e)
+                reply_protocol = BenchmarkProtocol(ReceiveProtocolHeader.failed)
+            self.controller.commander_socket.send_pyobj(reply_protocol)
 
-        def register(self, params):
-            self.controller.started_drivers = self.controller.started_drivers + 1
+        def register(self, param):
+            self.controller.started_drivers += 1
             return str(self.controller.started_drivers)
 
-        def heartbeat(self, params):
-            driver = params[0].decode()
-            #print("received hearbeat from ", driver)
-            self.controller.status_record.update_status(driver)
+        def ready(self, param):
+            print("@ report ready")
+            self.controller.ready_drivers += 1
 
-        def status(self, params):
+        def heartbeat(self, driver_id):
+            # print("received heartbeat from ", driver)
+            self.controller.status_record.update_status(driver_id)
+
+        def status(self, param):
             return self.controller.status_record.status
 
-        def stop(self, params):
-            self.controller.manager_publisher.send_string("stop")
+        def stop(self, param):
+            stop_protocol = BenchmarkProtocol(SendProtocolHeader.admin_stop)
+            self.controller.manager_publisher.send_pyobj(stop_protocol)
 
-        def summary(self, params):
+        def summary(self, param):
             return self.controller.benchmark_record.get_statistics()
 
-        def submit(self, params):
-            workload = pickle.loads(params[0])
+        def submit(self, workload):
             print("@ workload=", workload)
             # TODO: need to construct a queue?
             self.controller.workload = workload
             self.controller.benchmark_record = BenchmarkController.BenchmarkRecord(self.controller.workload)
+            self.controller.ready_drivers = 0
             # need to join?
+            workload_protocol = BenchmarkProtocol(SendProtocolHeader.admin_update_workload, self.controller.workload)
+            self.controller.manager_publisher.send_pyobj(workload_protocol)
             self.controller.runner_group.spawn(self.controller.dispatcher)
             return "0"
+
+        def get_workload(self, params):
+            return self.controller.workload
 
     def __init__(self, config_path):
         print("Controller initing")
@@ -207,6 +236,7 @@ class BenchmarkController(BenchmarkNode):
         self.result_queue_port = self.config.lookup_config(BenchmarkConfig.CONTROLLER_REPORT_QUEUE_PORT)
         self.status_record = BenchmarkController.StatusRecord()
 
+        self.ready_drivers = 0
         self.started_drivers = 0
         self.benchmark_record = None
 
@@ -222,6 +252,9 @@ class BenchmarkController(BenchmarkNode):
 
     def stop(self):
         self.runner_group.kill()
+
+    def update_workload(self, workload):
+        pass
 
     def commander(self):
         print('commander...')
@@ -243,18 +276,22 @@ class BenchmarkController(BenchmarkNode):
         job_queue = BenchmarkController.JobQueue(job_sender)
 
         # wait for all drivers to start
-        while self.started_drivers < self.num_drivers:
+        while self.ready_drivers < self.num_drivers:
+            print("# drivers: ready={}, total={}".format(self.ready_drivers, self.num_drivers))
             gevent.sleep(1)
 
         # start the counter
         self.benchmark_record.start()
 
-        # start to dispatch workload
-        for num_queries in self.workload.next_workload():
-            for i in range(num_queries):
+        # start to dispatch workload - num_queries
+        current_workload = self.workload.next()
+        while current_workload is not None:
+            self.benchmark_record.add_workload(current_workload)
+            for i in range(current_workload):
                 job_queue.enqueue(str(i))
             print("* waiting for 1 seconds")
             time.sleep(1)
+            current_workload = self.workload.next()
 
         job_sender.close()
 
@@ -277,6 +314,7 @@ class BenchmarkDriver(BenchmarkNode):
         self.num_workers = self.config.lookup_config(BenchmarkConfig.DRIVER_NUM_WORKER)
         self.worker_pool = gevent.pool.Pool(self.num_workers)
         self.worker_queue = gevent.queue.Queue()
+        self.workload = None
 
     def start(self):
         print("Driver starting")
@@ -301,6 +339,10 @@ class BenchmarkDriver(BenchmarkNode):
         self.worker_pool.kill()
         self.runner_group.kill()
 
+    def update_workload(self, workload):
+        self.workload = workload
+        BenchmarkCommander(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT)).ready(self.driver_id)
+
     def _register(self):
         self.driver_id = BenchmarkCommander(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT)).register()
 
@@ -322,17 +364,19 @@ class BenchmarkDriver(BenchmarkNode):
                 gevent.sleep(1)
             print("waiting for message")
             job_id = self.receiver.recv_string()
-            print("Receved job: {}".format(job_id))
+            print("Received job: {}".format(job_id))
             self.worker_queue.put(job_id)
 
     def worker(self, worker_id):
-        query_factory = query.QueryFactory(self.config.lookup_config(BenchmarkConfig.WORKLOAD_APPLICATIONS))
+        session = query.new_session()
         reporter_procotol = BenchmarkReporterProtocol(worker_id, self.sender)
         while True:
             worker_item = self.worker_queue.get()
             print("Running Roxie query")
+            app = self.workload.application_selection.select()
             start_time = time.time()
-            query_factory.next()()
+            (query_name, endpoint, query_key, key) = app.next_query()
+            query.run_query(session, *app.next_query())
             elapsed_time = time.time() - start_time
             reporter_procotol.report(worker_item, elapsed_time)
 
@@ -347,47 +391,49 @@ class BenchmarkReporterProtocol():
             "item": worker_item,
             "elapsedTime": elaspsed_time
         }
-        self.result_sender.send_pyobj(statics)
+        protocol = BenchmarkProtocol(SendProtocolHeader.report_done, statics)
+        self.result_sender.send_pyobj(protocol)
 
 
 class BenchmarkSenderProtocol():
     def __init__(self, commander_socket):
         self.commander_socket = commander_socket
 
-    def _send(self, cmd, *param):
-        self.commander_socket.send_multipart([cmd.encode()] + list(param))
-        return self.commander_socket.recv_pyobj()
-
-    def _send_no_reply(self, cmd, *param):
-        self.commander_socket.send_multipart([cmd.encode()] + list(param))
-        self.commander_socket.recv_string()
+    def _send(self, header, param=None):
+        request_protocol = BenchmarkProtocol(header, param)
+        self.commander_socket.send_pyobj(request_protocol)
+        reply_protocol = self.commander_socket.recv_pyobj()
+        print("@", reply_protocol.header)
+        if reply_protocol.header is not ReceiveProtocolHeader.successful:
+            raise Exception("unable to complete the request")
+        return reply_protocol.payloads
 
     def register(self):
-        driver_id = self._send("register")
+        driver_id = self._send(SendProtocolHeader.membership_register)
         print("registered driver id={}".format(driver_id))
         return driver_id
 
+    def ready(self, driver_id):
+        self._send(SendProtocolHeader.membership_ready, driver_id)
+
     def heartbeat(self, driver_id):
-        self._send_no_reply("heartbeat", str(driver_id).encode())
+        self._send(SendProtocolHeader.membership_heartbeat, driver_id)
 
     def status(self):
-        status_record = self._send("status")
-        return status_record
-
-    def start(self):
-        self._send_no_reply("start")
+        return self._send(SendProtocolHeader.admin_status)
 
     def stop(self):
-        self._send_no_reply("stop")
+        self._send(SendProtocolHeader.admin_stop)
 
     def summary(self):
-        report = self._send("summary")
-        return report
+        return self._send(SendProtocolHeader.benchmark_summary)
 
     def submit(self, workload):
-        print(workload)
-        benchmark_id = self._send("submit", pickle.dumps(workload))
-        return benchmark_id
+        print("@", workload)
+        return self._send(SendProtocolHeader.benchmark_submit, workload)
+
+    def get_workload(self):
+        return self._send(SendProtocolHeader.benchmark_workload)
 
 
 class BenchmarkCommander(BenchmarkSenderProtocol):

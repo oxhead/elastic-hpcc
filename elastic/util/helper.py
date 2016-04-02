@@ -4,8 +4,6 @@ import datetime
 import uuid
 import math
 
-from elastic.base import Node
-
 
 def get_timestamp():
     now = datetime.datetime.now()
@@ -17,11 +15,6 @@ def get_tmp_file():
     return "/tmp/%s" % str(uuid.uuid4())
 
 
-def parse_node(s):
-    result = s.split('=')
-    return Node(result[0], result[1])
-
-
 def find_nearest_power_2(n):
     return pow(2, int(math.log(n, 2) + 0.5))
 
@@ -31,3 +24,8 @@ def string_grep(s, word):
         if word in line:
             return line
     return None
+
+
+def parse_file(file_path):
+    with open(file_path, 'r') as f:
+        return [row.rstrip() for row in f.read().splitlines()]
