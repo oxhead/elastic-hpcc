@@ -62,11 +62,11 @@ def download_dataset(ctx, dataset):
         execute("mkdir -p {}".format(anagram2_dataset_dir))
         execute("wget http://downloads.sourceforge.net/wordlist/12dicts-5.0.zip -O {}/12dicts-5.0.zip".format(anagram2_dataset_dir))
         execute("unzip {}/12dicts-5.0.zip -d {}".format(anagram2_dataset_dir, anagram2_dataset_dir))
-    elif 'originalperson' in dataset:
+    if 'originalperson' in dataset:
         originalperson_dataset_dir = os.path.join(dataset_dir, "OriginalPerson")
         execute("mkdir -p {}".format(originalperson_dataset_dir))
         execute("wget http://wpc.423a.rhocdn.net/00423A/install/docs/3_8_0_8rc_CE/OriginalPerson -O {}/OriginalPerson".format(originalperson_dataset_dir))
-    elif 'sixedegree' in dataset:
+    if 'sixdegree' in dataset:
         sixdegree_dataset_dir = os.path.join(dataset_dir, "SixDegree")
         execute("mkdir -p {}".format(sixdegree_dataset_dir))
         execute("wget ftp://ftp.fu-berlin.de/pub/misc/movies/database/actors.list.gz -O {}/actors.list.gz".format(sixdegree_dataset_dir))
