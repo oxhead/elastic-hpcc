@@ -10,6 +10,12 @@
 * Python
   - Python 3
   - Pip 3
+
+    ```
+wget https://bootstrap.pypa.io/get-pip.py
+sudo pip3 get-pip.yp
+    ```
+
   - Virtualenv
 
 ### How to work with this tool set
@@ -40,6 +46,7 @@ vcl --hosts ~/list.public fix_ssh
 1. Install and uninstall the HPCC software on each node (this step should also create a user, user)
 
   ```
+wget http://wpc.423a.rhocdn.net/00423A/releases/CE-Candidate-6.0.0/bin/platform/hpccsystems-platform-community_6.0.0-beta1trusty_amd64.deb
 hpcc --hosts ~/list package install --deb ~/build_osr/hpccsystems-platform-osr_6.0.0-alpha1Debugtrusty_amd64.deb
 hpcc --hosts ~/list package uninstall
   ```
@@ -149,3 +156,36 @@ benchmark stress --times 20 --query validateanagrams --query searchlinks --query
   ```
 benchmark distributed_stress --query searchlinks --times 2 --concurrency 2
   ```
+
+### How to run benchmark
+1. Create a benchmark configuatino **conf/benchmark.yaml**
+1. Deploy benchmark programs
+
+  ```
+benchmark deploy
+  ```
+
+1. Install required packages
+
+  ```
+benchmark install_package
+  ```
+
+1. Copy the benchmark configuarion
+
+  ```
+benchmark deploy_config
+  ```
+
+1. Start all benchmark nodes (configued in conf/benchmark.yaml)
+
+  ```
+benchmark service start
+  ```
+
+1. Submit a workload
+
+  ```
+benchmark submit conf/workload.yaml
+  ```
+
