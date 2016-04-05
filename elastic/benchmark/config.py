@@ -8,8 +8,16 @@ class BaseConfig:
         with open(config_path, 'r') as f:
             return BaseConfig(yaml.load(f))
 
+    @staticmethod
+    def save_file(config, config_path):
+        with open(config_path, 'w') as f:
+            yaml.dump(config, f)
+
     def __init__(self, config):
         self.config = config
+
+    def to_file(self, config_path):
+        BaseConfig.save_file(self.config, config_path)
 
     def get_config(self, key, default_value=None):
         if key not in self.config:
@@ -33,7 +41,7 @@ class BaseConfig:
             raise e
 
     def get_controller(self):
-        return self.get_config("controller")['host']
+        return self.lookup_config("controller.host")
 
     def get_drivers(self):
-        return self.get_config("driver")['hosts']
+        return self.lookup_config("driver.hosts")

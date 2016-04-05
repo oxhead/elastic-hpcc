@@ -266,7 +266,7 @@ def gen_config(ctx, output, thor, roxie, support, channel_mode, attribute, overw
 
     customized_attr_list = ""
     for (xpath, attr, value) in attribute:
-        customized_attr_list = customized_attr_list + "-set_xpath_attrib_value {} {} {} ".format(xpath, attr, value)
+        customized_attr_list = customized_attr_list + "-set_xpath_attrib_value {} {} '{}' ".format(xpath, attr, value)
     if channel_mode is not None:
         customized_attr_list = customized_attr_list + "-set_xpath_attrib_value Software/RoxieCluster @slaveConfig {}".format(channel_mode)
 

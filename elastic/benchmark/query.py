@@ -1,4 +1,5 @@
 import json
+import logging
 import random
 import requests
 
@@ -6,6 +7,8 @@ from gevent import monkey
 
 monkey.patch_all()
 
+
+logger = logging.getLogger(__name__)
 
 def pretty_print_POST(req):
     """
@@ -61,4 +64,6 @@ def run_query(session, query_name, endpoint, query_key, key):
     }
     req = requests.Request('POST', endpoint, headers=headers, data=json.dumps(payload))
     prepared = req.prepare()
-    session.send(prepared)
+    r = session.send(prepared)
+    logger.debug(r.status_code)
+    logger.debug("return length: {}".format(len(r.text)))

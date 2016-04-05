@@ -1,7 +1,7 @@
 workload:
     type: poisson
     num_queries: 100
-    period: 20
+    period: 10
     distribution:
         type: pareto
         alpha: 3

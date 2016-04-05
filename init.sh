@@ -18,8 +18,6 @@ action_prepare ()
     pip install netifaces 2>&1 > /dev/null
     pip install pyyaml 2>&1 > /dev/null
     pip install --editable ${DIR}/sbin 2>&1 > /dev/null
-    pip install --editable ${DIR}/bin 2>&1 > /dev/null
-    pip install --editable ${DIR}/benchmark 2>&1 > /dev/null
     deactivate
 }
 

@@ -9,12 +9,14 @@ setup(
         'ecl',
         'thor',
         'roxie',
+        'benchmark',
     ],
     include_package_data=True,
     install_requires=[
         'click',
         'executor',
         'lxml',
+        'pyyaml',
     ],
     entry_points={
         'console_scripts': [
@@ -23,6 +25,7 @@ setup(
             'ecl=ecl:cli',
             'thor=thor:cli',
             'roxie=roxie:cli',
+            'benchmark=benchmark:cli',
         ]
     }
 )

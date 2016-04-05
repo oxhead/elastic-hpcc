@@ -93,7 +93,7 @@ class Workload:
         workload_config = WorkloadConfig.parse_file(config_path)
 
         global_distribution = workload_config.lookup_config("workload.distribution")
-        print("@ global:", global_distribution)
+        # print("@ global:", global_distribution)
 
         # roxie application setting
         apps = {}
@@ -147,7 +147,7 @@ class SelectionModel:
 
     @staticmethod
     def new(config_object, objects):
-        print("@", config_object['type'].lower())
+        # print("@", config_object['type'].lower())
         distribution_type = DistributionType[config_object['type'].lower()]
         if distribution_type == DistributionType.fixed:
             return SelectionModel.new_fixed(objects, config_object['percentage'])

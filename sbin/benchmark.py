@@ -1,44 +1,17 @@
 import os
-import pickle
-import random
+import logging
 
 import click
-import executor
 from executor import execute
-import yaml
 
-import parallel
-from ecl import convert_to_query_xml
-from elastic.benchmark import workload
+from elastic.util import parallel
+from elastic.benchmark.workload import Workload
 from elastic.benchmark.zeromqimpl import *
 from elastic.util import network as network_util
+from elastic.benchmark.service import  BenchmarkService
 
-def get_word_list():
-    return word_list
-
-def get_zipcode_list():
-    return zipcode_list
-
-def get_actor_list():
-    return actor_list
-
-def get_script_dir():
-    return os.path.dirname(os.path.realpath(__file__))
-
-word_file = os.path.join(get_script_dir(), 'dataset', 'word_list.txt')
-word_list = []
-with open(word_file) as f:
-    word_list = f.read().splitlines()
-
-zipcode_file = os.path.join(get_script_dir(), 'dataset', 'zipcode_list.txt')
-zipcode_list = []
-with open(zipcode_file) as f:
-    zipcode_list = f.read().splitlines()
-
-actor_file = os.path.join(get_script_dir(), 'dataset', 'actor_list.txt')
-actor_list = []
-with open(actor_file) as f:
-    actor_list = [actor.rstrip() for actor in f.read().splitlines()]
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -79,20 +52,14 @@ def download_dataset(ctx, dataset):
 @click.argument('action', type=click.Choice(['start', 'stop', 'status']))
 @click.pass_context
 def service(ctx, action):
+    benchmark_service = BenchmarkService.new(ctx.obj['config'])
     if action == "start":
-         with parallel.CommandAgent(show_result=False) as agent:
-             # TODO: a better way? Should not use fixed directory
-             agent.submit_remote_command(ctx.obj['_config'].get_controller(), 'bash ~/elastic-hpcc/script/start_controller.sh')
-             for driver_node in ctx.obj['_config'].get_drivers():
-                 print(driver_node)
-                 agent.submit_remote_command(driver_node, 'bash ~/elastic-hpcc/script/start_driver.sh', silent=True)
-    else:
-        commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
-        if action == "stop":
-            commander.stop()
-        elif action == "status":
-            print(commander.status())
-        
+        benchmark_service.start()
+    elif action == "stop":
+        benchmark_service.stop()
+    elif action == "status":
+        print(benchmark_service.status())
+
 
 @cli.command()
 @click.option('-n', '--node', multiple=True)
@@ -107,6 +74,7 @@ def install_package(ctx, node):
     with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
         for host in deploy_set:
             agent.submit_remote_command(host, "cd ~/elastic-hpcc; source init.sh", silent=True)
+
 
 @cli.command()
 @click.pass_context
@@ -141,23 +109,26 @@ def deploy_config(ctx):
     
 
 @cli.command()
-@click.argument('action', type=click.Choice(["summary"]))
+@click.argument('action', type=click.Choice(["status", "report", "statistics"]))
+@click.argument('wid', type=str)
 @click.pass_context
-def info(ctx, action):
+def workload(ctx, action, wid):
     commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
-    if action == "start":
-        commander.start()
-    elif action == "summary":
-        print(commander.summary())
+    if action == "status":
+        print(commander.workload_status(wid))
+    elif action == "report":
+        print(commander.workload_report(wid))
+    elif action == "statistics":
+        print(commander.workload_statistics(wid))
 
 @cli.command()
 @click.argument('config', type=click.Path(exists=True, resolve_path=True))
 @click.option('-o', '--output_dir', type=click.Path(exists=True, resolve_path=True), default="results")
 @click.pass_context
 def submit(ctx, config, output_dir):
-    w = workload.Workload.from_config(config)
+    w = Workload.from_config(config)
     #import pickle
     #pickle.dumps(w, pickle.DEFAULT_PROTOCOL)
     #return
     commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
-    commander.submit(w)
+    commander.workload_submit(w)

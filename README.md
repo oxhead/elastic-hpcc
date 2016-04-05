@@ -168,24 +168,32 @@ benchmark deploy
 1. Install required packages
 
   ```
-benchmark install_package
+benchmark --config conf/6driver.yaml install_package
   ```
 
 1. Copy the benchmark configuarion
 
   ```
-benchmark deploy_config
+benchmark --config conf/6driver.yaml deploy_config
   ```
 
-1. Start all benchmark nodes (configued in conf/benchmark.yaml)
+1. Start all benchmark nodes (will copy the configuration to conf/benchmark.yaml)
 
   ```
-benchmark service start
+benchmark --config conf/6driver.yaml service start
   ```
 
-1. Submit a workload
+1. Submit a workload (will return the workload id)
 
   ```
-benchmark submit conf/workload.yaml
+benchmark --config conf/6driver.yaml submit conf/workload.yaml
   ```
 
+1. Get workload info
+
+  ```
+benchmark workload [status|report|statistics] wid
+  ```
+
+# Run integrated benchmark suit
+1. python mybenchmark/compare_distributions.py

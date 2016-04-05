@@ -7,6 +7,7 @@ import traceback
 import datetime
 import logging
 import random
+import traceback
 
 import yaml
 
@@ -15,7 +16,7 @@ from elastic.util.monitoringtool import Monitor
 
 
 class Benchmark:
-    def __init__(self, cluster, output_dir, retries=3, **kwargs):
+    def __init__(self, cluster, output_dir, retries=1, **kwargs):
         self.cluster = cluster
         self.output_dir = output_dir
         self.retries = retries
@@ -24,6 +25,7 @@ class Benchmark:
         self.config_output_dir = os.path.join(self.output_dir, "config")
         self.kwargs = kwargs
         self.monitor = Monitor(self.cluster, self.monitoring_output_dir)
+        self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
 
     def pre_run(self):
         raise NotImplementedError()
@@ -68,11 +70,6 @@ class Benchmark:
         self.post_run()
         self.time_end = int(time.time())
 
-        self.logger.info("[Time] Start  : %s" % datetime.datetime.fromtimestamp(self.time_start).strftime('%Y-%m-%d %H:%M:%S'))
-        self.logger.info("[Time] End    : %s" % datetime.datetime.fromtimestamp(self.time_end).strftime('%Y-%m-%d %H:%M:%S'))
-        self.logger.info("[Time] Elapsed: %s sec" % (self.time_end - self.time_start))
-
-    @property
-    def logger(self):
-        name = '.'.join([__name__, self.__class__.__name__])
-        return logging.getLogger(name)
+        self.logger.info("start time: %s" % datetime.datetime.fromtimestamp(self.time_start).strftime('%Y-%m-%d %H:%M:%S'))
+        self.logger.info("end time: %s" % datetime.datetime.fromtimestamp(self.time_end).strftime('%Y-%m-%d %H:%M:%S'))
+        self.logger.info("elapsed time: %s sec" % (self.time_end - self.time_start))
