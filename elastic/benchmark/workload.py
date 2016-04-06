@@ -2,6 +2,7 @@ import bisect
 import copy
 from enum import Enum
 import random
+import logging
 
 import yaml
 
@@ -89,9 +90,11 @@ class Workload:
         raise Exception("unknown workload type: {}".format(workload_type))
 
     @staticmethod
-    def from_config(config_path):
-        workload_config = WorkloadConfig.parse_file(config_path)
+    def parse_config(config_path):
+        return Workload.from_config(WorkloadConfig.parse_file(config_path))
 
+    @staticmethod
+    def from_config(workload_config):
         global_distribution = workload_config.lookup_config("workload.distribution")
         # print("@ global:", global_distribution)
 
@@ -147,6 +150,9 @@ class SelectionModel:
 
     @staticmethod
     def new(config_object, objects):
+        print(config_object)
+        logger = logging.getLogger('.'.join([__name__, SelectionModel.__class__.__name__]))
+        logger.debug(config_object)
         # print("@", config_object['type'].lower())
         distribution_type = DistributionType[config_object['type'].lower()]
         if distribution_type == DistributionType.fixed:

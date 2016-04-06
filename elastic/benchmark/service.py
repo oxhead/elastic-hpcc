@@ -54,7 +54,10 @@ class BenchmarkService:
         return self.commander.status()
 
     def is_ready(self):
-        return len(self.status()) == len(self.config.get_drivers())
+        status_result = self.status()
+        self.logger.debug("# of online drivers: {}".format(len(status_result)))
+        self.logger.debug("# of drivers: {}".format(len(self.config.get_drivers())))
+        return len(status_result) == len(self.config.get_drivers())
 
     def submit_workload(self, workload):
         return self.commander.workload_submit(workload)

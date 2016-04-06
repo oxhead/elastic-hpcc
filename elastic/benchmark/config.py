@@ -1,5 +1,7 @@
 import yaml
 
+from elastic.util import collection as colleciton_util
+
 
 class BaseConfig:
 
@@ -26,19 +28,10 @@ class BaseConfig:
             return self.config[key]
 
     def set_config(self, key, value):
-        self.config[key] = value
+        self.config = colleciton_util.recursive_update(self.config, key, value)
 
     def lookup_config(self, key, default_value=None):
-        key_list = key.split(".")
-        try:
-            current_config = self.config
-            for k in key_list:
-                current_config = current_config[k]
-            return current_config
-        except Exception as e:
-            if default_value is not None:
-                return default_value
-            raise e
+        return colleciton_util.recursive_lookup(self.config, key, default_value=default_value)
 
     def get_controller(self):
         return self.lookup_config("controller.host")
