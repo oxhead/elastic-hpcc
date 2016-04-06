@@ -7,8 +7,11 @@ from executor import execute
 from elastic.util import parallel
 from elastic.benchmark.workload import Workload
 from elastic.benchmark.zeromqimpl import *
+from elastic.benchmark.roxie import RoxieBenchmark
 from elastic.util import network as network_util
-from elastic.benchmark.service import  BenchmarkService
+from elastic.benchmark.service import BenchmarkService
+from elastic.hpcc.base import HPCCCluster
+
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -126,9 +129,22 @@ def workload(ctx, action, wid):
 @click.option('-o', '--output_dir', type=click.Path(exists=True, resolve_path=True), default="results")
 @click.pass_context
 def submit(ctx, config, output_dir):
-    w = Workload.from_config(config)
+    w = Workload.parse_config(config)
     #import pickle
     #pickle.dumps(w, pickle.DEFAULT_PROTOCOL)
     #return
     commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
     commander.workload_submit(w)
+
+@cli.command()
+@click.argument('config', type=click.Path(exists=True, resolve_path=True))
+@click.option('-o', '--output_dir', type=click.Path(exists=False, resolve_path=True), default="results")
+@click.pass_context
+def run(ctx, config, output_dir):
+    hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/hpcc_t5_r5_cyclic.xml")
+    benchmark_config = BenchmarkConfig.parse_file(ctx.obj['config'])
+
+    w = Workload.parse_config(config)
+    bm = RoxieBenchmark(hpcc_cluster, benchmark_config, w, output_dir=output_dir)
+    bm.run()
+
