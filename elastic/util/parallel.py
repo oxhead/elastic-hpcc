@@ -52,8 +52,8 @@ class CommandAgent:
         i = 0
         for (identifier, cmd) in self.cmd_records.items():
             i = i + 1
-            self.logger.info("[{}] {}".format(i, cmd.ssh_alias if type(cmd) is RemoteCommand else identifier))
-            self.logger.info(cmd.output)
+            self.logger.debug("[{}] {}".format(i, cmd.ssh_alias if type(cmd) is RemoteCommand else identifier))
+            self.logger.debug(cmd.output)
 
     def submit(self, cmd_id, cmd, *args, **kwargs):
         ec = None

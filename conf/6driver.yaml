@@ -1,0 +1,24 @@
+controller:
+    host: 10.25.11.107
+    num_drivers: 6
+    commander:
+        port: 9999
+    job_queue:
+        port: 9998
+    report_queue:
+        port: 9997
+    manager:
+        port: 9996
+driver:
+    num_workers: 128
+    hosts:
+        - 10.25.12.2
+        - 10.25.11.110
+        - 10.25.11.73
+        - 10.25.11.71
+        - 10.25.11.93
+        - 10.25.13.44
+hpcc:
+    esp:
+        host: 152.46.16.135
+        port: 8002

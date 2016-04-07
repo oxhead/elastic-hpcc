@@ -53,6 +53,10 @@ def new_session():
     return requests.Session()
 
 
+def execute_workload_item(session, workload_item):
+    run_query(session, workload_item.query_name, workload_item.endpoint, workload_item.query_key, workload_item.key)
+
+
 def run_query(session, query_name, endpoint, query_key, key):
     headers = {
         "Content-Type": "application/json"

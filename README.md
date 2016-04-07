@@ -157,6 +157,25 @@ benchmark stress --times 20 --query validateanagrams --query searchlinks --query
 benchmark distributed_stress --query searchlinks --times 2 --concurrency 2
   ```
 
+### How to run benchmark in the single node mode
+1. Start the controller
+
+  ```
+python script/start_controller.py conf/1driver.yaml conf/logging.yaml logs/
+  ```
+
+1. Start the driver
+
+  ```
+python script/start_driver.py conf/1driver.yaml conf/logging.yaml logs/
+  ```
+
+1. Submit the workload
+
+  ```
+benchmark submit conf/workload.yaml -o /tmp/test1
+  ```
+
 ### How to run benchmark
 1. Create a benchmark configuatino **conf/benchmark.yaml**
 1. Deploy benchmark programs

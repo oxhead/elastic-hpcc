@@ -2,6 +2,7 @@ import logging
 import time
 
 from elastic.util import parallel
+from elastic.benchmark.workload import Workload, WorkloadExecutionTimeline
 from elastic.benchmark.zeromqimpl import BenchmarkCommander
 from elastic.benchmark.zeromqimpl import BenchmarkConfig
 from elastic.util import network as network_util
@@ -60,7 +61,14 @@ class BenchmarkService:
         return len(status_result) == len(self.config.get_drivers())
 
     def submit_workload(self, workload):
-        return self.commander.workload_submit(workload)
+        if isinstance(workload, Workload):
+            self.logger.debug("submit a workload object")
+            workload_timeline = WorkloadExecutionTimeline.from_workload(workload)
+        else:
+            self.logger.debug("submit a workload timeline")
+            workload_timeline = workload
+        self.logger.debug(workload_timeline)
+        return self.commander.workload_submit(workload_timeline)
 
     def run_workload(self, workload):
         workload_id = self.submit_workload(workload)

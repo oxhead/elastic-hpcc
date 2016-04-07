@@ -4,8 +4,9 @@ import logging
 import click
 from executor import execute
 
+from elastic import init
 from elastic.util import parallel
-from elastic.benchmark.workload import Workload
+from elastic.benchmark.workload import Workload, WorkloadExecutionTimeline
 from elastic.benchmark.zeromqimpl import *
 from elastic.benchmark.roxie import RoxieBenchmark
 from elastic.util import network as network_util
@@ -13,7 +14,8 @@ from elastic.benchmark.service import BenchmarkService
 from elastic.hpcc.base import HPCCCluster
 
 
-logging.basicConfig(level=logging.DEBUG)
+# TODO: temporary solution
+init.setup_logging(config_path="conf/logging.yaml", log_dir="logs", component="benchmark")
 logger = logging.getLogger(__name__)
 
 
@@ -91,7 +93,7 @@ def deploy(ctx):
     with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
         for host in deploy_set:
              # TODO: a better way? Should not use fixed directory
-             agent.submit_command('rsync -avz --exclude elastic-hpcc/HPCC-Platform --exclude elastic-hpcc/benchmark --exclude elastic-hpcc/.git --exclude elastic-hpcc/.venv ~/elastic-hpcc {}:~/'.format(host)) 
+             agent.submit_command('rsync -avz --exclude elastic-hpcc/HPCC-Platform --exclude elastic-hpcc/benchmark --exclude elastic-hpcc/benchmark_results --exclude elastic-hpcc/.git --exclude elastic-hpcc/.venv ~/elastic-hpcc {}:~/'.format(host))
 
     with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
         for host in deploy_set:
@@ -130,11 +132,9 @@ def workload(ctx, action, wid):
 @click.pass_context
 def submit(ctx, config, output_dir):
     w = Workload.parse_config(config)
-    #import pickle
-    #pickle.dumps(w, pickle.DEFAULT_PROTOCOL)
-    #return
-    commander = BenchmarkCommander(ctx.obj['_config'].get_controller(), ctx.obj['_config'].lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
-    commander.workload_submit(w)
+    workload_timeline = WorkloadExecutionTimeline.from_workload(w)
+    benchmark_service = BenchmarkService.new(ctx.obj['config'])
+    benchmark_service.submit_workload(workload_timeline)
 
 @cli.command()
 @click.argument('config', type=click.Path(exists=True, resolve_path=True))
@@ -145,6 +145,7 @@ def run(ctx, config, output_dir):
     benchmark_config = BenchmarkConfig.parse_file(ctx.obj['config'])
 
     w = Workload.parse_config(config)
-    bm = RoxieBenchmark(hpcc_cluster, benchmark_config, w, output_dir=output_dir)
+    workload_timeline = WorkloadExecutionTimeline.from_workload(w)
+    bm = RoxieBenchmark(hpcc_cluster, benchmark_config, workload_timeline, output_dir=output_dir)
     bm.run()
 

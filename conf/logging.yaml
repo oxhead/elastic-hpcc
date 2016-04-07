@@ -1,22 +1,24 @@
 ---
 
 version: 1
-disable_existing_loggers: False
+disable_existing_loggers: True
 formatters:
     simple:
         format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    short:
+        format: "%(filename)s:%(lineno)d : %(message)s"
 
 handlers:
     console:
         class: logging.StreamHandler
         level: DEBUG
-        formatter: simple
+        formatter: short
         stream: ext://sys.stdout
 
     info_file_handler:
         class: logging.handlers.RotatingFileHandler
         level: INFO            
-        formatter: simple
+        formatter: short
         filename: info.log
         maxBytes: 10485760 # 10MB
         backupCount: 20
@@ -25,15 +27,23 @@ handlers:
     error_file_handler:
         class: logging.handlers.RotatingFileHandler
         level: ERROR            
-        formatter: simple
+        formatter: short
         filename: errors.log
         maxBytes: 10485760 # 10MB
         backupCount: 20
         encoding: utf8
 
 loggers:
-    my_module:
-        level: ERROR
+    requests:
+        level: WARNING
+        handlers: [console]
+        propagate: no
+    executor:
+        level: WARNING
+        handlers: [console]
+        propagate: no
+    urllib3:
+        level: WARNING
         handlers: [console]
         propagate: no
 

@@ -3,8 +3,7 @@ import copy
 from enum import Enum
 import random
 import logging
-
-import yaml
+import pickle
 
 from elastic.benchmark import config
 from elastic.util import helper
@@ -70,6 +69,9 @@ class Workload:
         self.period = period
         self.taken_count = 0
 
+    def init(self):
+        self.taken_count = 0
+
     def next(self):
         if self.period is None:
             return self.workload_generator.next()
@@ -78,6 +80,7 @@ class Workload:
                 return None
             self.taken_count += 1
             return self.workload_generator.next()
+
 
     @staticmethod
     def new_generator(workload_type, num_queries):
@@ -150,7 +153,7 @@ class SelectionModel:
 
     @staticmethod
     def new(config_object, objects):
-        print(config_object)
+        # print(config_object)
         logger = logging.getLogger('.'.join([__name__, SelectionModel.__class__.__name__]))
         logger.debug(config_object)
         # print("@", config_object['type'].lower())
@@ -238,6 +241,60 @@ class SelectionModel:
         rv = [random.paretovariate(alpha) for _ in range(len(objects))]
         probability_list = SelectionModel._produce_probability_distribution(rv)
         return SelectionModel(DistributionType.pareto, probability_list, objects)
+
+
+class WorkloadItem:
+    def __init__(self, wid, query_name, endpoint, query_key, key):
+        self.wid = wid
+        self.query_name = query_name
+        self.endpoint = endpoint
+        self.query_key = query_key
+        self.key = key
+
+
+class WorkloadExecutionTimeline:
+
+    @staticmethod
+    def from_workload(workload):
+        workload.init()
+        workload_timeline = {}
+        current_time = 0
+        num_queries = workload.next()
+        while num_queries is not None:
+            workload_timeline[current_time] = []
+            for i in range(num_queries):
+                app = workload.application_selection.select()
+                wid = "{}-{}".format(current_time+1, i+1)
+                workload_item = WorkloadItem(wid, *app.next_query())
+                workload_timeline[current_time].append(workload_item)
+            num_queries = workload.next()
+            current_time += 1
+        return WorkloadExecutionTimeline(workload.period, workload_timeline)
+
+    @staticmethod
+    def from_timeline(timeline, workload):
+        new_workload_timeline = {}
+        for t in sorted(timeline.timeline.keys()):
+            new_workload_timeline[t] = []
+            num_queries = len(timeline.timeline[t])
+            for i in range(num_queries):
+                app = workload.application_selection.select()
+                wid = "{}-{}".format(t + 1, i + 1)
+                workload_item = WorkloadItem(wid, *app.next_query())
+                new_workload_timeline[t].append(workload_item)
+        return WorkloadExecutionTimeline(workload.period, new_workload_timeline)
+
+    def __init__(self, period, timeline):
+        self.period = period
+        self.timeline = timeline
+
+    def next(self):
+        for i in range(self.period):
+            yield (i, self.timeline[i])
+
+    def to_pickle(self, output_path):
+        with open(output_path, 'wb') as f:
+            pickle.dump(self, f)
 
 
 class RoxieApplication:
