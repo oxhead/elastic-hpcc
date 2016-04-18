@@ -93,7 +93,7 @@ def deploy(ctx):
     with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
         for host in deploy_set:
              # TODO: a better way? Should not use fixed directory
-             agent.submit_command('rsync -avz --exclude elastic-hpcc/HPCC-Platform --exclude elastic-hpcc/benchmark --exclude elastic-hpcc/benchmark_results --exclude elastic-hpcc/.git --exclude elastic-hpcc/.venv ~/elastic-hpcc {}:~/'.format(host))
+             agent.submit_command('rsync -avz --exclude elastic-hpcc/HPCC-Platform --exclude elastic-hpcc/benchmark --exclude elastic-hpcc/results --exclude elastic-hpcc/.git --exclude elastic-hpcc/.venv ~/elastic-hpcc {}:~/'.format(host))
 
     with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
         for host in deploy_set:

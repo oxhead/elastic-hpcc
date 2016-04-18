@@ -15,12 +15,12 @@ from elastic.util import helper
 
 
 arrival_types = ["poisson", "constant"]
-num_queries_list = [300, 500, 750, 1000]
+num_queries_list = [100, 200, 400, 600, 800, 1000]
 period_list = [180]
 distribution_types = [
-    {"type": "pareto", "alpha": 3},
+    #{"type": "pareto", "alpha": 3},
     {"type": "uniform"},
-    {"type": "gaussian", "mu": 1, "sigma": 0.2}
+    #{"type": "gaussian", "mu": 1, "sigma": 0.2}
 ]
 applications = ['anagram2', 'originalperson', 'sixdegree']
 
@@ -62,14 +62,14 @@ def run(run_output_dir):
                         bm = RoxieBenchmark(hpcc_cluster, benchmark_config, per_workload_timeline,
                                             output_dir=output_dir)
                         bm.run()
-                        time.sleep(10)
+                        time.sleep(90)
 
 
 def main():
     init.setup_logging(default_level=logging.DEBUG, config_path="conf/logging.yaml", log_dir="logs", component="benchmark")
 
-    for i in range(1, 2):
-        output_dir = "compare_app_and_distribution_ultra_{}".format(i)
+    for i in range(1, 4):
+        output_dir = "new_single_key_{}".format(i)
         run(output_dir)
 
 

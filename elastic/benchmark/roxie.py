@@ -7,6 +7,8 @@ import executor
 from elastic.benchmark import base
 from elastic.benchmark.zeromqimpl import *
 from elastic.benchmark.service import BenchmarkService
+from elastic.hpcc import roxie
+from elastic.util import parallel
 
 
 class RoxieBenchmark(base.Benchmark):
@@ -21,24 +23,37 @@ class RoxieBenchmark(base.Benchmark):
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
 
     def pre_run(self):
-        pass
+        self.logger.info("resetting Roxie metrics")
+        for node in self.cluster.get_nodes():
+            roxie.reset_metrics(node)
 
     def post_run(self):
         self.logger.info("Post-benchmark")
         executor.execute("mkdir -p %s" % self.result_output_dir)
         executor.execute("mkdir -p %s" % self.config_output_dir)
+
+        self.logger.info("exporting workload report")
         report = self.benchmark_service.get_workload_report(self.workload_id)
         report_output_file = os.path.join(self.result_output_dir, "report.json")
         with open(report_output_file, 'w') as f:
             json.dump(report, f)
 
+        self.logger.info("exporting detailed statistics")
         statistics = self.benchmark_service.get_workload_statistics(self.workload_id)
         statistics_output_file = os.path.join(self.result_output_dir, "statistics.json")
         with open(statistics_output_file, 'w') as f:
             json.dump(statistics, f)
 
+        self.logger.info("exporting timeline recording")
         workload_output_file = os.path.join(self.config_output_dir, "workload_timline.pickle")
         self.workload_timeline.to_pickle(workload_output_file)
+
+        self.logger.info("exporting Roxie metrics")
+        for node in self.cluster.get_nodes():
+            metrics = roxie.get_metrics(node)
+            metrics_output_file = os.path.join(self.monitoring_output_dir, "{}.json".format(node.get_ip()))
+            with open(metrics_output_file, 'w') as f:
+                json.dump(metrics, f)
 
     def run_benchmark(self):
         self.logger.info("run benchmark")

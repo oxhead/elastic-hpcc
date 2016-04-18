@@ -8,7 +8,7 @@ def main(argv):
     # logging config
     logging_config_path = argv[1]
     log_dir = argv[2]
-    init.setup_logging(config_path=logging_config_path, log_dir=log_dir, component="driver")
+    init.setup_logging(default_level=logging.DEBUG, config_path=logging_config_path, log_dir=log_dir, component="driver")
 
     driver = BenchmarkDriver(benchmark_config_path)
     driver.start()

@@ -15,6 +15,7 @@ def setup_logging(
 
     path = config_path
     if os.path.exists(path):
+        print('here')
         with open(path, 'rt') as f:
             # TODO: need a robust implementation
             if '.json' in path:
@@ -25,4 +26,5 @@ def setup_logging(
         config['handlers']['error_file_handler']['filename'] = os.path.join(log_dir, "{}.error".format(component))
         logging.config.dictConfig(config)
     else:
+        print('@@')
         logging.basicConfig(level=default_level)

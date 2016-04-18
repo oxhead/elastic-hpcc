@@ -69,5 +69,7 @@ def run_query(session, query_name, endpoint, query_key, key):
     req = requests.Request('POST', endpoint, headers=headers, data=json.dumps(payload))
     prepared = req.prepare()
     r = session.send(prepared)
+    print("{} {} {} {}".format(query_name, endpoint, query_key, key))
+    logger.info("{} {} {} {}".format(query_name, endpoint, query_key, key))
     logger.debug(r.status_code)
     logger.debug("return length: {}".format(len(r.text)))

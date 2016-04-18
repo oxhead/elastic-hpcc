@@ -34,6 +34,6 @@ class Monitor:
         self.kill_service()
         executor.execute("mkdir -p %s" % self.output_dir)
         for node in self.cluster.get_nodes():
-            node_output_file = "%s/dstat_%s.csv" % (self.output_dir, node.get_hostname())
+            node_output_file = "%s/dstat_%s.csv" % (self.output_dir, node.get_ip())
             remote_copy_cmd = "scp %s:%s %s" % (node.get_ip(), self.output_path, node_output_file)
             executor.execute(remote_copy_cmd, check=False, silent=True)

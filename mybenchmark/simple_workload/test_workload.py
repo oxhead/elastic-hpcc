@@ -16,7 +16,8 @@ def main():
     hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/hpcc_t5_r5_cyclic.xml")
     benchmark_config = BenchmarkConfig.parse_file("/home/chsu6/elastic-hpcc/conf/benchmark.yaml")
 
-    workload_config = "/home/chsu6/elastic-hpcc/conf/workload_simple.yaml"
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    workload_config = os.path.join(script_dir, "workload_simple.yaml")
     workload = Workload.parse_config(workload_config)
     workload_timeline = WorkloadExecutionTimeline.from_workload(workload)
 
