@@ -35,20 +35,29 @@ def cli(ctx, **kwargs):
         with open(topology_cached, 'rb') as f:
             ctx.obj['topology'] = pickle.load(f)
 
+
 def get_system_dir(ctx):
     return ctx.obj['system_dir']
+
 
 def get_thor(ctx):
     thor_master_host, component_status = ctx.obj['topology']['roxie'][0]
     return thor_master_host
 
+
 def get_roxie(ctx):
     eclagent_host, component_status = ctx.obj['topology']['eclagent'][0]
     return eclagent_host
 
+
+def get_roxie_nodes(ctx):
+    return [n[0] for n in ctx.obj['topology']['roxie']]
+
+
 def get_esp(ctx):
     eclagent_host, component_status = ctx.obj['topology']['eclagent'][0]
     return eclagent_host
+
 
 def create_cluster_topology(ctx):
     topology = defaultdict(lambda : [])

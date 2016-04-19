@@ -15,9 +15,9 @@ def get_metrics(node):
 
 
 def reset_metrics(node):
-    RemoteCommand(node.get_ip(), "sudo /opt/HPCCSystems/bin/testsocket {} '<control:resetMetrics/>'".format(node.get_ip()), capture=True, silent=True)
-    RemoteCommand(node.get_ip(), "sudo /opt/HPCCSystems/bin/testsocket {} '<control:resetindexmetrics/>'".format(node.get_ip()), capture=True, silent=True)
-    RemoteCommand(node.get_ip(), "sudo /opt/HPCCSystems/bin/testsocket {} '<control:resetquerystats/>'".format(node.get_ip()), capture=True, silent=True)
+    RemoteCommand(node.get_ip(), "sudo /opt/HPCCSystems/bin/testsocket {} '<control:resetMetrics/>'".format(node.get_ip()), capture=True, silent=True).start()
+    RemoteCommand(node.get_ip(), "sudo /opt/HPCCSystems/bin/testsocket {} '<control:resetindexmetrics/>'".format(node.get_ip()), capture=True, silent=True).start()
+    RemoteCommand(node.get_ip(), "sudo /opt/HPCCSystems/bin/testsocket {} '<control:resetquerystats/>'".format(node.get_ip()), capture=True, silent=True).start()
 
 
 

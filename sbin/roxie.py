@@ -13,9 +13,13 @@ from common import CaptureOutput
 import parallel
 from cli import cli
 from cli import get_roxie
+from cli import get_roxie_nodes
 from cli import get_system_dir
 from ecl import run as ecl_run
-from ecl import convert_to_query_xml
+
+from elastic.base import Node
+from elastic.hpcc import roxie as roxie_util
+
 
 @cli.command()
 @click.option('--ecl', type=click.Path(exists=True, resolve_path=True))
@@ -28,6 +32,7 @@ from ecl import convert_to_query_xml
 def run(ctx, ecl, dir, input, wait, job, wait_until_complete):
     ctx.forward(ecl_run, target='roxie')
 
+
 @cli.command()
 @click.argument('name')
 @click.option('--ecl', type=click.Path(exists=True, resolve_path=True))
@@ -39,6 +44,7 @@ def publish(ctx, name, ecl, dir):
     program_dir = os.path.dirname(ecl) if dir is None else dir
     cmd = 'cd {}; {}/bin/ecl publish roxie {} --name={} --server={} -A'.format(program_dir, get_system_dir(ctx), ecl, name, eclagent_host)
     execute(cmd, sudo=True)
+
 
 @cli.command()
 @click.argument('name')
@@ -59,6 +65,7 @@ def unpublish(ctx, name):
 @click.pass_context
 def query(ctx, name, input, job, wait, wait_until_complete):
     return ctx.forward(ecl_run, name=name, target='roxie')
+
 
 @cli.command()
 @click.argument('wuid')
@@ -82,3 +89,20 @@ def clean_unused_files(ctx):
     eclagent_host = get_roxie(ctx)
     cmd = '{}/bin/ecl roxie unused-files myroxie --server={} --delete'.format(get_system_dir(ctx), eclagent_host)
     execute(cmd)
+
+
+@cli.command()
+@click.pass_context
+def lookup_counters(ctx):
+    with parallel.ThreadAgent() as agent:
+        for n in get_roxie_nodes(ctx):
+            agent.submit(n, roxie_util.get_metrics, Node(n, n))
+    print(agent.results())
+
+
+@cli.command()
+@click.pass_context
+def reset_counters(ctx):
+    with parallel.ThreadAgent() as agent:
+        for n in get_roxie_nodes(ctx):
+            agent.submit(n, roxie_util.reset_metrics, Node(n, n))
