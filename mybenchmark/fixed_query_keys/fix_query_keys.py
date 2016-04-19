@@ -14,8 +14,10 @@ from elastic.hpcc.base import *
 from elastic.util import helper
 
 
-arrival_types = ["poisson", "constant"]
-num_queries_list = [100, 200, 400, 600, 800, 1000]
+#arrival_types = ["poisson", "constant"]
+arrival_types = ["poisson"]
+#num_queries_list = [100, 200, 400, 600, 800, 1000]
+num_queries_list = [100, 300, 900]
 period_list = [180]
 distribution_types = [
     #{"type": "pareto", "alpha": 3},
@@ -25,13 +27,13 @@ distribution_types = [
 applications = ['anagram2', 'originalperson', 'sixdegree']
 
 
-def run(run_output_dir):
+def run(run_output_dir, workload_file):
     hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/hpcc_t5_r5_cyclic.xml")
     benchmark_config = BenchmarkConfig.parse_file("/home/chsu6/elastic-hpcc/conf/benchmark.yaml")
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
 
-    workload_config_template = WorkloadConfig.parse_file(os.path.join(script_dir, "workload_template.yaml"))
+    workload_config_template = WorkloadConfig.parse_file(os.path.join(script_dir, workload_file))
     application_db = workload_config_template.lookup_config('workload.applications')
 
     for arrival_type in arrival_types:
@@ -68,9 +70,11 @@ def run(run_output_dir):
 def main():
     init.setup_logging(default_level=logging.DEBUG, config_path="conf/logging.yaml", log_dir="logs", component="benchmark")
 
+    workload_files = ["workload_template.yaml", "workload_template2.yaml", "workload_template3.yaml"]
     for i in range(1, 4):
-        output_dir = "new_single_key_{}".format(i)
-        run(output_dir)
+        workload_file = workload_files[i-1]
+        output_dir = "2nd_120workers_single_key_{}".format(i)
+        run(output_dir, workload_file)
 
 
 if __name__ == "__main__":

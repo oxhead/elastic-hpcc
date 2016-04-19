@@ -13,16 +13,16 @@ workload:
             query_name: validateanagrams
             query_key: word
             key_list:
-                - Aaron
+                - zoom
         originalperson:
             endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/fetchpeoplebyzipservice
             query_name: fetchpeoplebyzipservice
             query_key: zipvalue
             key_list:
-                - 27606
+                - 1001
         sixdegree:
             endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/searchlinks
             query_name: searchlinks
             query_key: name
             key_list:
-                - Everingham, Andi
+                - Witzui, Taylor
