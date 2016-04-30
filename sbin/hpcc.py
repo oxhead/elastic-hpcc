@@ -172,6 +172,13 @@ def cluster_topology(ctx, show=False):
                 print("\t{}: {}".format(host, condition))
     return dict(topology)
 
+
+@cli.command()
+@click.pass_context
+def print_topology(ctx):
+    print(ctx.obj['topology'])
+
+
 @cli.command()
 @click.option('--data', type=click.Path(exists=True, resolve_path=True))
 @click.option('--dropzone_path', default='/var/lib/HPCCSystems/mydropzone')

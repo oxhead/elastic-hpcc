@@ -51,7 +51,7 @@ class RoxieBenchmark(base.Benchmark):
         self.logger.info("exporting Roxie metrics")
         for node in self.cluster.get_nodes():
             metrics = roxie.get_metrics(node)
-            metrics_output_file = os.path.join(self.monitoring_output_dir, "{}.json".format(node.get_ip()))
+            metrics_output_file = os.path.join(self.monitoring_output_dir, "roxie_{}.json".format(node.get_ip()))
             with open(metrics_output_file, 'w') as f:
                 json.dump(metrics, f)
 

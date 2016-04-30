@@ -10,7 +10,7 @@ controller:
     manager:
         port: 9996
 driver:
-    num_workers: 128
+    num_workers: 32
     hosts:
         - 10.25.12.20
         - 10.25.12.21

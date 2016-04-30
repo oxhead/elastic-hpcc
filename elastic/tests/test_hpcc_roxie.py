@@ -16,7 +16,6 @@ class TestHPCCRoxie(unittest.TestCase):
     def test_get_metrics(self):
         from elastic.hpcc import roxie
         output = roxie.get_metrics(self.node)
-        print(output)
         self.assertTrue(len(output) > 0)
 
 

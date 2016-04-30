@@ -15,7 +15,6 @@ def setup_logging(
 
     path = config_path
     if os.path.exists(path):
-        print('here')
         with open(path, 'rt') as f:
             # TODO: need a robust implementation
             if '.json' in path:

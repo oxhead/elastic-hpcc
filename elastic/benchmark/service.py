@@ -33,7 +33,7 @@ class BenchmarkService:
             deploy_set.add(driver_node)
         with parallel.CommandAgent(concurrency=len(deploy_set)) as agent:
             for host in deploy_set:
-                agent.submit_command("scp {} {}:{}".format(tmp_config_path, host, config_path))
+                agent.submit_command('scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {} {}:{}'.format(tmp_config_path, host, config_path))
 
     def start(self):
         self.logger.info("start benchmark service")

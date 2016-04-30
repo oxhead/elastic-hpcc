@@ -27,7 +27,6 @@ def cli(ctx, **kwargs):
     topology_cached = "/tmp/.topology.cached"
     if ctx.obj['reload'] or (not os.path.exists(topology_cached)):
         topology = create_cluster_topology(ctx)
-        print(topology)
         ctx.obj['topology'] = topology
         with open(topology_cached, 'wb') as f:
             pickle.dump(topology, f)
@@ -62,8 +61,8 @@ def get_esp(ctx):
 def create_cluster_topology(ctx):
     topology = defaultdict(lambda : [])
     with CaptureOutput() as output:
-        with parallel.CommandAgent() as agent:
-                agent.submit_remote_commands(ctx.obj['host_list'], "sudo service hpcc-init {}".format("status"), check=False, silent=True, capture=True)
+        with parallel.CommandAgent(concurrency=len(ctx.obj['host_list']), show_result=True) as agent:
+            agent.submit_remote_commands(ctx.obj['host_list'], "sudo service hpcc-init status", check=False, silent=True, capture=True)
     host = None
     for line in output:
         if '[' in line:

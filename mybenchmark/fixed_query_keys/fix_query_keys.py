@@ -17,19 +17,21 @@ from elastic.util import helper
 #arrival_types = ["poisson", "constant"]
 arrival_types = ["poisson"]
 #num_queries_list = [100, 200, 400, 600, 800, 1000]
-num_queries_list = [100, 300, 900]
-period_list = [180]
+num_queries_list = [100, 400, 1600]
+period_list = [120]
 distribution_types = [
-    #{"type": "pareto", "alpha": 3},
-    {"type": "uniform"},
+    {"type": "pareto", "alpha": 3},
+    #{"type": "uniform"},
     #{"type": "gaussian", "mu": 1, "sigma": 0.2}
 ]
-applications = ['anagram2', 'originalperson', 'sixdegree']
-
+#applications = ['anagram2', 'originalperson', 'sixdegree']
+applications = ['originalperson', 'sixdegree']
 
 def run(run_output_dir, workload_file):
-    hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/hpcc_t5_r5_cyclic.xml")
-    benchmark_config = BenchmarkConfig.parse_file("/home/chsu6/elastic-hpcc/conf/benchmark.yaml")
+    #hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/hpcc_t5_r5_120worker_cyclic.xml")
+    hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/hpcc_16r_cyclic_2replica.xml")
+    benchmark_config = BenchmarkConfig.parse_file("/home/chsu6/elastic-hpcc/conf/6driver.yaml")
+    #benchmark_config = BenchmarkConfig.parse_file("/home/chsu6/elastic-hpcc/conf/1driver.yaml")
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -64,16 +66,19 @@ def run(run_output_dir, workload_file):
                         bm = RoxieBenchmark(hpcc_cluster, benchmark_config, per_workload_timeline,
                                             output_dir=output_dir)
                         bm.run()
-                        time.sleep(90)
+                        time.sleep(60)
 
 
 def main():
     init.setup_logging(default_level=logging.DEBUG, config_path="conf/logging.yaml", log_dir="logs", component="benchmark")
 
-    workload_files = ["workload_template.yaml", "workload_template2.yaml", "workload_template3.yaml"]
-    for i in range(1, 4):
-        workload_file = workload_files[i-1]
-        output_dir = "2nd_120workers_single_key_{}".format(i)
+    workload_files = ["workload_template1.yaml", "workload_template2.yaml", "workload_template3.yaml"]
+    #workload_files = ["workload_template1_direct.yaml", "workload_template2_direct.yaml", "workload_template3_direct.yaml"]
+
+    for i in range(0, 3):
+        workload_file = workload_files[i]
+        output_dir = "all_compare_keys_{}".format(i+1)
+        # output_dir = "test_compare_keys_{}".format(i + 1)
         run(output_dir, workload_file)
 
 

@@ -54,7 +54,12 @@ def new_session():
 
 
 def execute_workload_item(session, workload_item):
-    run_query(session, workload_item.query_name, workload_item.endpoint, workload_item.query_key, workload_item.key)
+    try:
+        run_query(session, workload_item.query_name, workload_item.endpoint, workload_item.query_key, workload_item.key)
+        return True
+    except:
+        pass
+    return False
 
 
 def run_query(session, query_name, endpoint, query_key, key):
@@ -66,10 +71,12 @@ def run_query(session, query_name, endpoint, query_key, key):
             query_key: key
         }
     }
-    req = requests.Request('POST', endpoint, headers=headers, data=json.dumps(payload))
-    prepared = req.prepare()
-    r = session.send(prepared)
-    print("{} {} {} {}".format(query_name, endpoint, query_key, key))
+    #req = requests.Request('POST', endpoint, headers=headers, data=json.dumps(payload))
+    #prepared = req.prepare()
+    #r = session.send(prepared, timeout=10)
+    r = requests.post(endpoint, headers=headers, data=json.dumps(payload), timeout=10)
+    #print("{} {} {} {}".format(query_name, endpoint, query_key, key))
     logger.info("{} {} {} {}".format(query_name, endpoint, query_key, key))
-    logger.debug(r.status_code)
+    logger.info(r.status_code)
     logger.debug("return length: {}".format(len(r.text)))
+    #logger.debug(r.text)

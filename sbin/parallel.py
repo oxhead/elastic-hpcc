@@ -49,8 +49,8 @@ class CommandAgent:
         i = 0
         for (identifier, cmd) in self.cmd_records.items():
             i = i + 1
-            self.logger.info("[{}] {}".format(i, cmd.ssh_alias if type(cmd) is RemoteCommand else identifier))
-            self.logger.info(cmd.output)
+            print("[{}] {}".format(i, cmd.ssh_alias if type(cmd) is RemoteCommand else identifier))
+            print(cmd.output)
 
     def submit(self, cmd_id, cmd, *args, **kwargs):
         ec = None
@@ -66,6 +66,10 @@ class CommandAgent:
         self.submit(hash(cmd), ExternalCommand(cmd, *args, **kwargs))
 
     def submit_remote_command(self, host, cmd, *args, **kwargs):
+        if 'strict_host_key_checking' not in kwargs:
+            kwargs['strict_host_key_checking'] = False
+        if 'ignore_known_hosts' not in kwargs:
+            kwargs['ignore_known_hosts'] = True
         self.submit(hash(host + cmd), RemoteCommand(host, cmd, *args, **kwargs))
 
     def submit_remote_commands(self, nodes, cmd, *args, **kwargs):

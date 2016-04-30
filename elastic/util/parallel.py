@@ -69,6 +69,10 @@ class CommandAgent:
         self.submit(hash(cmd), ExternalCommand(cmd, *args, **kwargs))
 
     def submit_remote_command(self, host, cmd, *args, **kwargs):
+        if 'strict_host_key_checking' not in kwargs:
+            kwargs['strict_host_key_checking'] = False
+        if 'ignore_known_hosts' not in kwargs:
+            kwargs['ignore_known_hosts'] = True
         if isinstance(host, str):
             self.submit(hash(host + cmd), RemoteCommand(host, cmd, *args, **kwargs))
         elif isinstance(host, base.Node):
