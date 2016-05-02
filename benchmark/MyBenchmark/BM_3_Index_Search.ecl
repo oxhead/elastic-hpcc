@@ -10,12 +10,14 @@ STRING5 input_zip := '' : STORED('Zip');
 UNSIGNED4 input_num := 100 : STORED('Num');
 
 idx := $.DeclareData.IDX__Person_All_Payload;
-idx_filtered  := idx(KEYED(input_last_name='' OR LastName=input_last_name) AND
-										 KEYED(input_first_name='' OR FirstName=input_first_name) AND
-									   KEYED(input_gender='' OR Gender=input_gender) AND
-										 KEYED(input_city='' OR City=input_city) AND
-										 KEYED(input_state='' OR State=input_state) AND
-										 KEYED(input_zip='' OR Zip=input_zip) AND
+idx_filtered  := idx(KEYED(input_last_name='' OR LastName=input_last_name),
+										 KEYED(input_first_name='' OR FirstName=input_first_name),
+									   KEYED(input_gender='' OR Gender=input_gender),
+										 KEYED(input_city='' OR City=input_city),
+										 KEYED(input_state='' OR State=input_state),
+										 KEYED(input_zip='' OR Zip=input_zip),
 										 WILD(PersonID));
-
+//o := PROJECT(CHOOSEN(idx_filtered, input_num), TRANSFORM($.DeclareData.Layout_Person_Simple, SELF :=LEFT));
+//OUTPUT(idx_filtered);
+//OUTPUT(COUNT(idx_filtered));
 OUTPUT(CHOOSEN(idx_filtered, input_num));

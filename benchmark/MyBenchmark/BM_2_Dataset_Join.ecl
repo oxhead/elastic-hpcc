@@ -11,30 +11,22 @@ UNSIGNED4 input_num := 100 : STORED('Num');
 
 
 base1 := $.DeclareData.Person.FilePlus;
-base1_filtered := base1(Std.Str.Contains(LastName, input_last_name, TRUE) AND
-											Std.Str.Contains(FirstName, input_first_name, TRUE) AND
-											Std.Str.Contains(Gender, input_gender, TRUE) AND
-											Std.Str.Contains(City, input_city, TRUE) AND
-											Std.Str.Contains(State, input_state, TRUE) AND
-											Std.Str.Contains(Zip, input_zip, TRUE));
+base1_filtered := base1(input_last_name='' OR LastName=input_last_name,
+											input_first_name='' OR FirstName=input_first_name,
+											input_gender='' OR Gender=input_gender,
+											input_city='' OR City=input_city,
+											input_state='' OR State=input_state,
+											input_zip='' OR Zip=input_zip);
 
 base2 := $.DeclareData.Accounts;
 
-r1 := RECORD
-    $.DeclareData.Layout_Person;
-    $.DeclareData.Layout_Accounts;
-END;
-
-
-r1 Xform1($.DeclareData.Person.FilePlus L,
-          $.DeclareData.Accounts R) := TRANSFORM
+$.DeclareData.Layout_Person_Account_Simple Xform1($.DeclareData.Accounts R, $.DeclareData.Person.FilePlus L) := TRANSFORM
     SELF := L;
     SELF := R;
 END;
 
-J1 := JOIN(base1_filtered,
-           base2,
+J1 := JOIN(base2,
+           CHOOSEN(base1_filtered, input_num),
 					 LEFT.PersonID=RIGHT.PersonID,
-           Xform1(LEFT,RIGHT),
-					 LIMIT(input_num));
-OUTPUT(J1);
+           Xform1(LEFT,RIGHT));
+OUTPUT(CHOOSEN(J1, input_num));

@@ -8,6 +8,19 @@ EXPORT DeclareData := MODULE
 	EXPORT LZ_IP  := '10.173.9.4';		//This MUST be changed to the Landing Zone IP for your configuration
 	EXPORT LZ_Dir := 'ProgGuide/';   
 
+	
+	EXPORT Layout_Person_Account_Simple := RECORD
+		UNSIGNED3 PersonID;
+		STRING15 FirstName;
+		STRING25 LastName;
+		STRING20 Account;
+		UNSIGNED4 Balance;
+	END;
+	EXPORT Layout_Person_Simple := RECORD
+		UNSIGNED3 PersonID;
+		STRING15 FirstName;
+		STRING25 LastName;
+	END;
 	EXPORT Layout_Person := RECORD
 		UNSIGNED3 PersonID;
 		STRING15 FirstName;
