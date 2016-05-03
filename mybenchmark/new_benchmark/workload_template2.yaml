@@ -1,0 +1,59 @@
+workload:
+    type: constant
+    num_queries: 10
+    period: 10
+    distribution:
+        type: pareto
+        alpha: 3
+    selection:
+        type: uniform
+    applications:
+        anagram2:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/validateanagrams
+            query_name: validateanagrams
+            query_key: word
+            key_list:
+                - Aaron
+        originalperson:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/fetchpeoplebyzipservice
+            query_name: fetchpeoplebyzipservice
+            query_key: zipvalue
+            key_list:
+                - 27606
+        sixdegree:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/searchlinks
+            query_name: searchlinks
+            query_key: name
+            key_list:
+                #- Hsu, Chin-Jung
+                - Everingham, Andi
+        bm1:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_1
+            query_name: bm_1
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        bm2:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_2
+            query_name: bm_2
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        bm3:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_3
+            query_name: bm_3
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        bm4:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_4
+            query_name: bm_4
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        bm5:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_5
+            query_name: bm_5
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        bm6:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_6
+            query_name: bm_6
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt

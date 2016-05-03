@@ -1,0 +1,16 @@
+workload:
+    type: constant
+    num_queries: 100
+    period: 10
+    distribution:
+        type: pareto
+        alpha: 3
+    selection:
+        type: uniform
+    applications:
+        bm5:
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_5
+            query_name: bm_5
+            query_key: lastname
+            key_list:
+                - ADEKOYA

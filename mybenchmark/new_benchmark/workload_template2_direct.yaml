@@ -1,0 +1,28 @@
+workload:
+    type: constant
+    num_queries: 10
+    period: 10
+    distribution:
+        type: pareto
+        alpha: 3
+    selection:
+        type: uniform
+    applications:
+        anagram2:
+            endpoint: http://10.25.11.100:9876
+            query_name: validateanagrams
+            query_key: word
+            key_list:
+                - zoom
+        originalperson:
+            endpoint: http://10.25.11.100:9876
+            query_name: fetchpeoplebyzipservice
+            query_key: zipvalue
+            key_list:
+                - 01001
+        sixdegree:
+            endpoint: http://10.25.11.100:9876
+            query_name: searchlinks
+            query_key: name
+            key_list:
+                - Witzui, Taylor
