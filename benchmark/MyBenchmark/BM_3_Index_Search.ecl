@@ -17,7 +17,7 @@ idx_filtered  := idx(KEYED(input_last_name='' OR LastName=input_last_name),
 										 KEYED(input_state='' OR State=input_state),
 										 KEYED(input_zip='' OR Zip=input_zip),
 										 WILD(PersonID));
-//o := PROJECT(CHOOSEN(idx_filtered, input_num), TRANSFORM($.DeclareData.Layout_Person_Simple, SELF :=LEFT));
-//OUTPUT(idx_filtered);
+o := PROJECT(CHOOSEN(idx_filtered, input_num), TRANSFORM($.DeclareData.Layout_Person_Simple, SELF :=LEFT));
+OUTPUT(o);
 //OUTPUT(COUNT(idx_filtered));
-OUTPUT(CHOOSEN(idx_filtered, input_num));
+//OUTPUT(CHOOSEN(idx_filtered, input_num));
