@@ -109,6 +109,8 @@ class BenchmarkController(BenchmarkNode):
             self.num_finished_jobs = 0
             self.ready_drivers = 0
             self.dispatch_completed = False
+            self.counter_success = 0
+            self.counter_failure = 0
             self.statistics = {}
             self.logger = logging.getLogger(__name__)
 
@@ -129,7 +131,12 @@ class BenchmarkController(BenchmarkNode):
         def report_completion(self, report):
             self.time_last_report = time.time()
             self.num_finished_jobs += 1
-            self.statistics[report['item']] = report['elapsedTime']
+            self.statistics[report['item']] = report
+            if report['success']:
+                self.counter_success += 1
+            else:
+                self.counter_failure += 1
+
 
         def is_completed(self):
             """jobs may all complete before dispatch finish"""
@@ -143,6 +150,8 @@ class BenchmarkController(BenchmarkNode):
         def get_report(self):
             return {
                 "num_finished_jobs": self.num_finished_jobs,
+                "num_successful_jobs": self.counter_success,
+                "num_failed_jobs": self.counter_failure,
                 "elapsed_time": self.time_last_report - self.time_start if self.is_completed() else time.time() - self.time_start
             }
 
@@ -419,9 +428,9 @@ class BenchmarkDriver(BenchmarkNode):
             worker_item = self.worker_queue.get()
             self.logger.info("worker {} is processing roxie query {}".format(worker_id, worker_item.wid))
             start_time = time.time()
-            success = query.execute_workload_item(session, worker_item)
+            success, output_size = query.execute_workload_item(session, worker_item)
             elapsed_time = time.time() - start_time
-            reporter_procotol.report(worker_item.wid, elapsed_time, success)
+            reporter_procotol.report(worker_item.wid, elapsed_time, success, output_size)
 
 
 class BenchmarkReporterProtocol():
@@ -430,11 +439,12 @@ class BenchmarkReporterProtocol():
         self.result_sender = result_sender
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
 
-    def report(self, worker_item, elaspsed_time, success):
+    def report(self, worker_item, elaspsed_time, success, output_size):
         statics = {
             "item": worker_item,
             "elapsedTime": elaspsed_time,
-            "success": success
+            "success": success,
+            "size": output_size
         }
         protocol = BenchmarkProtocol(SendProtocolHeader.report_done, statics)
         self.result_sender.send_pyobj(protocol)

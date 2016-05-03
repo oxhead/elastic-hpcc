@@ -79,3 +79,7 @@ class CommandAgent:
             self.submit(hash(host.get_ip() + cmd), RemoteCommand(host.get_ip(), cmd, *args, **kwargs))
         else:
             raise Exception("unknown host type: {}".format(type(host)))
+
+    def submit_remote_commands(self, nodes, cmd, *args, **kwargs):
+        for node in nodes:
+            self.submit_remote_command(node, cmd, *args, **kwargs) 

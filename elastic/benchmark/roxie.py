@@ -23,6 +23,7 @@ class RoxieBenchmark(base.Benchmark):
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
 
     def pre_run(self):
+        super(RoxieBenchmark, self).pre_run()
         self.logger.info("resetting Roxie metrics")
         for node in self.cluster.get_nodes():
             roxie.reset_metrics(node)

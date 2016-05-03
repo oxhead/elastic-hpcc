@@ -55,11 +55,10 @@ def new_session():
 
 def execute_workload_item(session, workload_item):
     try:
-        run_query(session, workload_item.query_name, workload_item.endpoint, workload_item.query_key, workload_item.key)
-        return True
+        return run_query(session, workload_item.query_name, workload_item.endpoint, workload_item.query_key, workload_item.key)
     except:
         pass
-    return False
+    return False, 0
 
 
 def run_query(session, query_name, endpoint, query_key, key):
@@ -79,4 +78,5 @@ def run_query(session, query_name, endpoint, query_key, key):
     logger.info("{} {} {} {}".format(query_name, endpoint, query_key, key))
     logger.info(r.status_code)
     logger.debug("return length: {}".format(len(r.text)))
-    #logger.debug(r.text)
+    #logger.info(r.text)
+    return r.status_code == 200, len(r.text)

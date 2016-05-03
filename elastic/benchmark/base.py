@@ -13,6 +13,7 @@ import yaml
 
 from elastic import base
 from elastic.util.monitoringtool import Monitor
+from elastic.util import parallel
 
 
 class Benchmark:
@@ -28,7 +29,11 @@ class Benchmark:
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
 
     def pre_run(self):
-        raise NotImplementedError()
+        self.logger.info("sync time across servers")
+        # https://svn.unity.ncsu.edu/svn/cls/tags/realmconfig/4.1.19/default-modules/ntp2.py
+        ntp_servers = ['152.1.227.236', '152.1.227.237', '152.1.227.238']
+        with parallel.CommandAgent(concurrency=len(self.cluster.get_nodes()), show_result=False) as agent:
+            agent.submit_remote_commands(self.cluster.get_nodes(), 'sudo ntpdate -u {}'.format(random.choice(ntp_servers)), silent=True)
 
     def post_run(self):
         raise NotImplementedError()

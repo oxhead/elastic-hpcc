@@ -49,6 +49,8 @@ class BenchmarkService:
 
     def stop(self):
         self.commander.stop()
+        with parallel.CommandAgent(concurrency=len(self.config.get_drivers())) as agent:
+            agent.submit_remote_commands(self.config.get_drivers(), "sudo pkill -9 python", check=False)
 
     def status(self):
         self.logger.info("check status of benchmark service")
