@@ -261,21 +261,30 @@ def spray(ctx, data, dstname, **kwargs):
 @click.option('--thor', default=1, type=int, help='The number of Thor nodes')
 @click.option('--roxie', default=1, type=int, help='The number of roxie nodes')
 @click.option('--support', default=1, type=int, help='The number of support nodes')
+@click.option('--num_replica', default=2, type=int, help='The number of replicas')
 @click.option('--channel_mode', default='simple', type=click.Choice(['simple', 'cyclic', 'overloaded', 'elastic']), help='The mechanism to determine how the channel assignment')
 @click.option('--attribute', '-a', multiple=True, type=(str, str, str), help='The custormized configurations in XML via XPath')
 @click.option('--overwrite', is_flag=True)
 @click.pass_context
-def gen_config(ctx, output, thor, roxie, support, channel_mode, attribute, overwrite):
+def gen_config(ctx, output, thor, roxie, support, num_replica, channel_mode, attribute, overwrite):
     if not overwrite and os.path.exists(output):
         print('The output file already exists')
         return
 
+    if channel_mode == 'simple':
+        channel_mode_str = 'full redundancy'
+    elif channel_mode == 'cyclic':
+        channel_mode_str = 'cyclic redundancy'
+    else:
+        channel_mode_str = channel_mode
 
     customized_attr_list = ""
     for (xpath, attr, value) in attribute:
-        customized_attr_list = customized_attr_list + "-set_xpath_attrib_value {} {} '{}' ".format(xpath, attr, value)
+        customized_attr_list = customized_attr_list + " -set_xpath_attrib_value {} {} '{}' ".format(xpath, attr, value)
     if channel_mode is not None:
-        customized_attr_list = customized_attr_list + "-set_xpath_attrib_value Software/RoxieCluster @slaveConfig {}".format(channel_mode)
+        customized_attr_list = customized_attr_list + " -set_xpath_attrib_value Software/RoxieCluster @slaveConfig '{}' ".format(channel_mode_str)
+    if num_replica is not None:
+        customized_attr_list = customized_attr_list + " -set_xpath_attrib_value Software/RoxieCluster @numDataCopies '{}' ".format(num_replica)
 
     cmd = "{}/sbin/envgen -env {} -ipfile {} -supportnodes {} -thornodes {} -roxienodes {} -slavesPerNode {} {}".format(get_system_dir(ctx), output, ctx.obj['hosts'], support, thor, roxie, 1, customized_attr_list)
     print(cmd)
