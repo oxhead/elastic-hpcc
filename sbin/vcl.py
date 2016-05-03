@@ -93,3 +93,12 @@ def ip(ctx):
         cmd = RemoteCommand(host, "hostname -I | awk '{print $1}'", ignore_known_hosts=True, capture=True)
         cmd.start()
         click.echo(cmd.output)
+
+
+@cli.command()
+@click.argument('cmdline')
+@click.pass_context
+def cmd(ctx, cmdline):
+    with parallel.CommandAgent(show_result=False) as agent:
+        for host in ctx.obj['host_list']:
+            agent.submit_remote_command(host, cmdline, ignore_known_hosts=True, check=False)
