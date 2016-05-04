@@ -25,8 +25,10 @@ class RoxieBenchmark(base.Benchmark):
     def pre_run(self):
         super(RoxieBenchmark, self).pre_run()
         self.logger.info("resetting Roxie metrics")
-        for node in self.cluster.get_nodes():
-            roxie.reset_metrics(node)
+        with parallel.ThreadAgent() as agent:
+            for node in self.cluster.get_nodes():
+                roxie.reset_metrics(node)
+                agent.submit(node.get_ip(), roxie.reset_metrics, node)
 
     def post_run(self):
         self.logger.info("Post-benchmark")
@@ -37,13 +39,19 @@ class RoxieBenchmark(base.Benchmark):
         report = self.benchmark_service.get_workload_report(self.workload_id)
         report_output_file = os.path.join(self.result_output_dir, "report.json")
         with open(report_output_file, 'w') as f:
-            json.dump(report, f)
+            json.dump(report, f, indent=4, sort_keys=True)
 
         self.logger.info("exporting detailed statistics")
         statistics = self.benchmark_service.get_workload_statistics(self.workload_id)
         statistics_output_file = os.path.join(self.result_output_dir, "statistics.json")
         with open(statistics_output_file, 'w') as f:
-            json.dump(statistics, f)
+            json.dump(statistics, f, indent=4, sort_keys=True)
+
+        self.logger.info("exporting query completion timeline")
+        completion_timeline = self.benchmark_service.get_workload_timeline_completion(self.workload_id)
+        completion_timeline_file = os.path.join(self.result_output_dir, "completion_timeline.json")
+        with open(completion_timeline_file, 'w') as f:
+            json.dump(completion_timeline, f, indent=4, sort_keys=True)
 
         self.logger.info("exporting timeline recording")
         workload_output_file = os.path.join(self.config_output_dir, "workload_timline.pickle")
@@ -54,7 +62,7 @@ class RoxieBenchmark(base.Benchmark):
             metrics = roxie.get_metrics(node)
             metrics_output_file = os.path.join(self.monitoring_output_dir, "roxie_{}.json".format(node.get_ip()))
             with open(metrics_output_file, 'w') as f:
-                json.dump(metrics, f)
+                json.dump(metrics, f, indent=4, sort_keys=True)
 
     def run_benchmark(self):
         self.logger.info("run benchmark")

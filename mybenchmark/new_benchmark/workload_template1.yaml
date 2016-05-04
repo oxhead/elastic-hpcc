@@ -32,34 +32,34 @@ workload:
             query_name: bm_1
             query_key: lastname
             key_list:
-                - ADEKOYA
+                - ADDISON
         bm2:
             endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_2
             query_name: bm_2
             query_key: lastname
             key_list:
-                - ADEKOYA
+                - ADDISON
         bm3:
             endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_3
             query_name: bm_3
             query_key: lastname
             key_list:
-                - ADEKOYA
+                - ADDISON
         bm4:
             endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_4
             query_name: bm_4
             query_key: lastname
             key_list:
-                - ADEKOYA
+                - ADDISON
         bm5:
             endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_5
             query_name: bm_5
             query_key: lastname
             key_list:
-                - ADEKOYA
+                - ADDISON
         bm6:
             endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_6
             query_name: bm_6
             query_key: lastname
             key_list:
-                - ADEKOYA
+                - ZAVALA

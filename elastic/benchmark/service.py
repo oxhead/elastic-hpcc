@@ -1,5 +1,6 @@
 import logging
 import time
+import random
 
 from elastic.util import parallel
 from elastic.benchmark.workload import Workload, WorkloadExecutionTimeline
@@ -38,6 +39,13 @@ class BenchmarkService:
     def start(self):
         self.logger.info("start benchmark service")
         self.deploy_config()
+        self.logger.info("sync time across servers")
+        # https://svn.unity.ncsu.edu/svn/cls/tags/realmconfig/4.1.19/default-modules/ntp2.py
+        ntp_servers = ['152.1.227.236', '152.1.227.237', '152.1.227.238']
+        benchmark_nodes = [self.config.get_controller()] + self.config.get_drivers()
+        with parallel.CommandAgent(concurrency=len(benchmark_nodes), show_result=False) as agent:
+            agent.submit_remote_commands(benchmark_nodes, 'sudo ntpdate -u {}'.format(random.choice(ntp_servers)), silent=True)
+
         with parallel.CommandAgent(show_result=True) as agent:
             # TODO: a better way? Should not use fixed directory
             self.logger.info("start the controller node at {}".format(self.config.get_controller()))
@@ -94,3 +102,6 @@ class BenchmarkService:
 
     def get_workload_statistics(self, workload_id):
         return self.commander.workload_statistics(workload_id)
+
+    def get_workload_timeline_completion(self, workload_id):
+        return self.commander.workload_timeline_completion(workload_id)

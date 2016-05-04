@@ -20,7 +20,7 @@ def main():
     benchmark_config = BenchmarkConfig.parse_file("/home/chsu6/elastic-hpcc/conf/1driver.yaml")
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    workload_config = os.path.join(script_dir, "workload_new_bm2.yaml")
+    workload_config = os.path.join(script_dir, "workload_new_bm.yaml")
     workload = Workload.parse_config(workload_config)
     workload_timeline = WorkloadExecutionTimeline.from_workload(workload)
 

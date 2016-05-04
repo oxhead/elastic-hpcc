@@ -44,7 +44,8 @@ class SendProtocolHeader(Enum):
     workload_status = 22
     workload_report = 23
     workload_statistics = 24
-    workload_download = 25
+    workload_timeline_completion = 25
+    workload_download = 26
 
     report_done = 31
 
@@ -112,6 +113,7 @@ class BenchmarkController(BenchmarkNode):
             self.counter_success = 0
             self.counter_failure = 0
             self.statistics = {}
+            self.timeline_completion = {}
             self.logger = logging.getLogger(__name__)
 
         def start(self):
@@ -131,9 +133,15 @@ class BenchmarkController(BenchmarkNode):
         def report_completion(self, report):
             self.time_last_report = time.time()
             self.num_finished_jobs += 1
-            self.statistics[report['item']] = report
+            item_id = report['item']
+            report.pop('item', None)
+            self.statistics[item_id] = report
             if report['success']:
                 self.counter_success += 1
+                timeslot = int(self.time_last_report-self.time_start)+1
+                if timeslot not in self.timeline_completion:
+                    self.timeline_completion[timeslot] = 0
+                self.timeline_completion[timeslot] += 1
             else:
                 self.counter_failure += 1
 
@@ -157,6 +165,9 @@ class BenchmarkController(BenchmarkNode):
 
         def get_statistics(self):
             return self.statistics
+
+        def get_timeline_completion(self):
+            return self.timeline_completion
 
     class StatisticsCollectorProtocol:
         def __init__(self, controller):
@@ -194,6 +205,7 @@ class BenchmarkController(BenchmarkNode):
                 SendProtocolHeader.admin_stop: self.stop,
                 SendProtocolHeader.workload_submit: self.workload_submit,
                 SendProtocolHeader.workload_report: self.workload_report,
+                SendProtocolHeader.workload_timeline_completion: self.workload_timeline_completion,
                 SendProtocolHeader.workload_statistics: self.workload_statistics,
                 SendProtocolHeader.workload_status: self.workload_status,
             }
@@ -250,6 +262,9 @@ class BenchmarkController(BenchmarkNode):
 
         def workload_statistics(self, workload_id):
             return self.controller.workload_db[str(workload_id)].get_statistics()
+
+        def workload_timeline_completion(self, workload_id):
+            return self.controller.workload_db[str(workload_id)].get_timeline_completion()
 
         def workload_status(self, workload_id):
             return self.controller.workload_db[str(workload_id)].is_completed()
@@ -430,7 +445,7 @@ class BenchmarkDriver(BenchmarkNode):
             start_time = time.time()
             success, output_size = query.execute_workload_item(session, worker_item)
             elapsed_time = time.time() - start_time
-            reporter_procotol.report(worker_item.wid, elapsed_time, success, output_size)
+            reporter_procotol.report(worker_item.wid, start_time, elapsed_time, success, output_size)
 
 
 class BenchmarkReporterProtocol():
@@ -439,9 +454,10 @@ class BenchmarkReporterProtocol():
         self.result_sender = result_sender
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
 
-    def report(self, worker_item, elaspsed_time, success, output_size):
+    def report(self, worker_item, start_time, elaspsed_time, success, output_size):
         statics = {
             "item": worker_item,
+            "startTime": start_time,
             "elapsedTime": elaspsed_time,
             "success": success,
             "size": output_size
@@ -495,6 +511,10 @@ class BenchmarkSenderProtocol:
     def workload_statistics(self, workload_id):
         self.logger.info("retrieve workload statistics")
         return self._send(SendProtocolHeader.workload_statistics, workload_id)
+
+    def workload_timeline_completion(self, workload_id):
+        self.logger.info("retrieve workload statistics")
+        return self._send(SendProtocolHeader.workload_timeline_completion, workload_id)
 
     def workload_status(self, workload_id):
         self.logger.info("check workload status")

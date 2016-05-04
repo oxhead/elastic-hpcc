@@ -16,8 +16,8 @@ from elastic.util import helper
 
 #arrival_types = ["poisson", "constant"]
 arrival_types = ["constant"]
-#num_queries_list = [100, 200, 400, 600, 800, 1000]
-num_queries_list = [100, 400, 800]
+#num_queries_list = [1600]
+num_queries_list = [800, 1200, 1600]
 period_list = [60]
 distribution_types = [
     {"type": "pareto", "alpha": 3},
@@ -26,12 +26,13 @@ distribution_types = [
 ]
 #applications = ['anagram2', 'originalperson', 'sixdegree']
 #applications = ['bm1', 'bm2', 'bm3', 'bm4', 'bm5', 'bm6']
-applications = ['bm3', 'bm4', 'bm5', 'bm6']
+applications = ['bm6']
 
 def run(run_output_dir, workload_file):
     #hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/hpcc_t5_r5_120worker_cyclic.xml")
     #hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/hpcc_16r_cyclic_2replica.xml")
-    hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/elastic_cyclic_4node_2replica.xml")
+    #hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/elastic_cyclic_4node_2replica.xml")
+    hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/cyclic/elastic_4node_2replica.xml")
     benchmark_config = BenchmarkConfig.parse_file("/home/chsu6/elastic-hpcc/conf/6driver.yaml")
     #benchmark_config = BenchmarkConfig.parse_file("/home/chsu6/elastic-hpcc/conf/1driver.yaml")
 
@@ -82,8 +83,9 @@ def main():
     for i in range(1, 2):
         workload_file = workload_files[i]
         # output_dir = "my_bm_{}".format(i+1)
-        output_dir = "my_bm_4"
-        # output_dir = "test_compare_keys_{}".format(i + 1)
+        output_dir = "limit_bm6_multiple_key"
+        #output_dir = "limit_bm6_single_key_3"
+        #output_dir = "/tmp/test_new".format(i + 1)
         run(output_dir, workload_file)
 
 

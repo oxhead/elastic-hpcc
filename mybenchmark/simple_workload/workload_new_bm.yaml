@@ -9,8 +9,8 @@ workload:
         type: uniform
     applications:
         bm5:
-            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_5
-            query_name: bm_5
+            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_6
+            query_name: bm_6
             query_key: lastname
             key_list:
-                - ADEKOYA
+                - ADDISON
