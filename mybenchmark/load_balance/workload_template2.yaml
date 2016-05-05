@@ -1,0 +1,55 @@
+workload:
+    type: constant
+    num_queries: 10
+    period: 10
+    distribution:
+        type: pareto
+        alpha: 3
+    selection:
+        type: uniform
+    endpoints:
+        - http://10.25.11.85:9876
+        - http://10.25.12.10:9876
+        - http://10.25.11.79:9876
+        - http://10.25.11.100:9876
+    applications:
+        anagram2:
+            query_name: validateanagrams
+            query_key: word
+            key_list:
+                - Aaron
+        originalperson:
+            query_name: fetchpeoplebyzipservice
+            query_key: zipvalue
+            key_list:
+                - 27606
+        sixdegree:
+            query_name: searchlinks
+            query_key: name
+            key_list:
+                #- Hsu, Chin-Jung
+                - Everingham, Andi
+        bm1:
+            query_name: bm_1
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        bm2:
+            query_name: bm_2
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        bm3:
+            query_name: bm_3
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        bm4:
+            query_name: bm_4
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        bm5:
+            query_name: bm_5
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        bm6:
+            query_name: bm_6
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt

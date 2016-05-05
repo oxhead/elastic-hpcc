@@ -7,10 +7,14 @@ workload:
         alpha: 3
     selection:
         type: uniform
+    endpoints:
+        - http://10.25.11.85:9876
+        - http://10.25.12.10:9876
+        - http://10.25.11.79:9876
+        - http://10.25.11.100:9876
     applications:
-        bm5:
-            endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_6
+        bm6:
             query_name: bm_6
             query_key: lastname
-            key_list:
-                - ADDISON
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+

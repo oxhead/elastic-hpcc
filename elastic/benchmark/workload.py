@@ -60,6 +60,18 @@ class ExponentialWorkloadGenerator(WorkloadGenerator):
         return int(random.expovariate(self.lambd))
 
 
+class RoxieTargetDispatcher():
+    def __init__(self, target_list):
+        self.target_list = target_list
+        self.num_choices = len(self.target_list)
+        self.current = 0
+
+    def next(self):
+        # will overflow?
+        self.current += 1
+        return self.target_list[self.current%self.num_choices]
+
+
 class Workload:
 
     def __init__(self, workload_type, workload_generator, application_selection, period=None):
@@ -101,10 +113,17 @@ class Workload:
         global_distribution = workload_config.lookup_config("workload.distribution")
         # print("@ global:", global_distribution)
 
+        endpoint_list = []
+        try:
+            endpoint_list = workload_config.lookup_config("workload.endpoints")
+        except:
+            pass
+
         # roxie application setting
         apps = {}
         for (app_name, app_setting) in workload_config.lookup_config("workload.applications").items():
-            endpoint = app_setting['endpoint']
+            #if 'endpoint' in app_setting:
+            #    endpoint = app_setting['endpoint']
             query_name = app_setting['query_name']
             query_key = app_setting['query_key']
             key_list = app_setting['key_list'] if 'key_list' in app_setting else helper.parse_file(app_setting['key_file'])
@@ -113,7 +132,7 @@ class Workload:
                 selection_model = SelectionModel.new(app_setting['distribution'], key_list)
             else:
                 selection_model = SelectionModel.new(global_distribution, key_list)
-            app = RoxieApplication(query_name, endpoint, query_key, selection_model)
+            app = RoxieApplication(query_name, endpoint_list, query_key, selection_model)
             apps[app_name] = app
 
         # workload setting
@@ -298,11 +317,15 @@ class WorkloadExecutionTimeline:
 
 
 class RoxieApplication:
-    def __init__(self, query_name, endpoint, query_key, selection_model):
+    def __init__(self, query_name, endpoint_list, query_key, selection_model):
         self.query_name = query_name
-        self.endpoint = endpoint
+        self.endpoint_list = endpoint_list
         self.query_key = query_key
         self.selection_model = selection_model
+        self.endpoint_dispatcher = RoxieTargetDispatcher(self.endpoint_list)
 
     def next_query(self):
-        return self.query_name, self.endpoint, self.query_key, self.selection_model.select()
+        endpoint = self.endpoint_dispatcher.next()
+        if "8002" in endpoint:
+            endpoint = "{}/WsEcl/json/query/roxie/{}".format(endpoint, self.query_name)
+        return self.query_name, endpoint, self.query_key, self.selection_model.select()
