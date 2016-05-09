@@ -41,14 +41,14 @@ workload:
                 - ADDISON
         bm3:
             query_name: bm_3
-            query_key: lastname
+            query_key: firstname
             key_list:
-                - ADDISON
+                - SOOK
         bm4:
             query_name: bm_4
-            query_key: lastname
+            query_key: firstname
             key_list:
-                - ADDISON
+                - SOOK
         bm5:
             query_name: bm_5
             query_key: lastname
@@ -59,3 +59,19 @@ workload:
             query_key: firstname
             key_list:
                 - SOOK
+        mybm1:
+            query_name: mybm_1
+            query_key: firstname
+            key_list:
+                - MARY
+                # MARY, MERLIN, ANGELITA
+        mybm4:
+            query_name: mybm_4
+            query_key: firstname
+            key_list:
+                - ANGELITA
+        mybm5:
+            query_name: mybm_5
+            query_key: firstname
+            key_list:
+                - ANGELITA

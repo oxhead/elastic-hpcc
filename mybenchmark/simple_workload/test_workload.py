@@ -24,7 +24,7 @@ def main():
     workload = Workload.parse_config(workload_config)
     workload_timeline = WorkloadExecutionTimeline.from_workload(workload)
 
-    output_dir = os.path.join("benchmark_results", "/tmp/test_workload")
+    output_dir = os.path.join("benchmark_results", "/tmp/test_workload6")
     bm = RoxieBenchmark(hpcc_cluster, benchmark_config, workload_timeline, output_dir=output_dir)
     bm.run()
     

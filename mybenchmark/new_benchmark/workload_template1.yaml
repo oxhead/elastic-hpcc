@@ -44,7 +44,7 @@ workload:
             query_name: bm_3
             query_key: lastname
             key_list:
-                - ADDISON
+                - ZAVALA
         bm4:
             endpoint: http://152.46.16.135:8002/WsEcl/json/query/roxie/bm_4
             query_name: bm_4

@@ -53,3 +53,11 @@ workload:
             query_name: bm_6
             query_key: lastname
             key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        mybm4:
+            query_name: mybm_4
+            query_key: firstname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/firstname_list.txt
+        mybm5:
+            query_name: mybm_5
+            query_key: firstname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/firstname_list.txt

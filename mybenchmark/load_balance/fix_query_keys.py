@@ -17,7 +17,7 @@ from elastic.util import helper
 #arrival_types = ["poisson", "constant"]
 arrival_types = ["constant"]
 #num_queries_list = [1600]
-num_queries_list = [100, 400, 800]
+num_queries_list = [100, 400]
 period_list = [60]
 distribution_types = [
     {"type": "pareto", "alpha": 3},
@@ -26,7 +26,7 @@ distribution_types = [
 ]
 #applications = ['anagram2', 'originalperson', 'sixdegree']
 #applications = ['bm1', 'bm2', 'bm3', 'bm4', 'bm5', 'bm6']
-applications = ['bm6']
+applications = ['mybm4', 'mybm5']
 
 def run(run_output_dir, workload_file):
     #hpcc_cluster = HPCCCluster.parse_config("/etc/HPCCSystems/source/hpcc_t5_r5_120worker_cyclic.xml")
@@ -84,8 +84,8 @@ def main():
     for i in range(1, 2):
         workload_file = workload_files[i]
         # output_dir = "my_bm_{}".format(i+1)
-        #output_dir = "lb_4node_2replica_bm6_single_key_2_120thread"
-        output_dir = "lb_4node_2replica_bm6_multiple_key_2_120thread"
+        #output_dir = "final_4node_4replica_single_key_ANGELITA"
+        output_dir = "final_4node_2replica_multiple_key"
         #output_dir = "/tmp/test_new123".format(i + 1)
         run(output_dir, workload_file)
 
