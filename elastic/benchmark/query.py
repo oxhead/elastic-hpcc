@@ -56,7 +56,8 @@ def new_session():
 def execute_workload_item(session, workload_item):
     try:
         return run_query(session, workload_item.query_name, workload_item.endpoint, workload_item.query_key, workload_item.key)
-    except:
+    except Exception as e:
+        print(e)
         pass
     return False, 0
 
@@ -75,6 +76,7 @@ def run_query(session, query_name, endpoint, query_key, key):
     #r = session.send(prepared, timeout=10)
     r = requests.post(endpoint, headers=headers, data=json.dumps(payload), timeout=10)
     #print("{} {} {} {}".format(query_name, endpoint, query_key, key))
+    print("{} {} {} {} {} {}".format(query_name, endpoint, query_key, key, r.status_code, len(r.text)))
     logger.info("{} {} {} {} {} {}".format(query_name, endpoint, query_key, key, r.status_code, len(r.text)))
     logger.debug(r.status_code)
     logger.debug("return length: {}".format(len(r.text)))

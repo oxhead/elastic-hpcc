@@ -105,3 +105,6 @@ class BenchmarkService:
 
     def get_workload_timeline_completion(self, workload_id):
         return self.commander.workload_timeline_completion(workload_id)
+
+    def get_workload_timeline_failure(self, workload_id):
+        return self.commander.workload_timeline_failure(workload_id)

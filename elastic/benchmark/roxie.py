@@ -53,6 +53,12 @@ class RoxieBenchmark(base.Benchmark):
         with open(completion_timeline_file, 'w') as f:
             json.dump(completion_timeline, f, indent=4, sort_keys=True)
 
+        self.logger.info("exporting query failulre timeline")
+        failure_timeline = self.benchmark_service.get_workload_timeline_failure(self.workload_id)
+        failure_timeline_file = os.path.join(self.result_output_dir, "failure_timeline.json")
+        with open(failure_timeline_file, 'w') as f:
+            json.dump(failure_timeline, f, indent=4, sort_keys=True)
+
         self.logger.info("exporting timeline recording")
         workload_output_file = os.path.join(self.config_output_dir, "workload_timline.pickle")
         self.workload_timeline.to_pickle(workload_output_file)

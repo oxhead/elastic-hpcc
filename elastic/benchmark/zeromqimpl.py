@@ -45,7 +45,8 @@ class SendProtocolHeader(Enum):
     workload_report = 23
     workload_statistics = 24
     workload_timeline_completion = 25
-    workload_download = 26
+    workload_timeline_failure = 26
+    workload_download = 27
 
     report_done = 31
 
@@ -114,6 +115,7 @@ class BenchmarkController(BenchmarkNode):
             self.counter_failure = 0
             self.statistics = {}
             self.timeline_completion = {}
+            self.timeline_failure = {}
             self.logger = logging.getLogger(__name__)
 
         def start(self):
@@ -136,14 +138,17 @@ class BenchmarkController(BenchmarkNode):
             item_id = report['item']
             report.pop('item', None)
             self.statistics[item_id] = report
+            timeslot = int(self.time_last_report - self.time_start) + 1
             if report['success']:
                 self.counter_success += 1
-                timeslot = int(self.time_last_report-self.time_start)+1
                 if timeslot not in self.timeline_completion:
                     self.timeline_completion[timeslot] = 0
                 self.timeline_completion[timeslot] += 1
             else:
                 self.counter_failure += 1
+                if timeslot not in self.timeline_failure:
+                    self.timeline_failure[timeslot] = 0
+                self.timeline_failure[timeslot] += 1
 
 
         def is_completed(self):
@@ -168,6 +173,9 @@ class BenchmarkController(BenchmarkNode):
 
         def get_timeline_completion(self):
             return self.timeline_completion
+
+        def get_timeline_failure(self):
+            return self.timeline_failure
 
     class StatisticsCollectorProtocol:
         def __init__(self, controller):
@@ -206,6 +214,7 @@ class BenchmarkController(BenchmarkNode):
                 SendProtocolHeader.workload_submit: self.workload_submit,
                 SendProtocolHeader.workload_report: self.workload_report,
                 SendProtocolHeader.workload_timeline_completion: self.workload_timeline_completion,
+                SendProtocolHeader.workload_timeline_failure: self.workload_timeline_failure,
                 SendProtocolHeader.workload_statistics: self.workload_statistics,
                 SendProtocolHeader.workload_status: self.workload_status,
             }
@@ -265,6 +274,9 @@ class BenchmarkController(BenchmarkNode):
 
         def workload_timeline_completion(self, workload_id):
             return self.controller.workload_db[str(workload_id)].get_timeline_completion()
+
+        def workload_timeline_failure(self, workload_id):
+            return self.controller.workload_db[str(workload_id)].get_timeline_failure()
 
         def workload_status(self, workload_id):
             return self.controller.workload_db[str(workload_id)].is_completed()
@@ -513,8 +525,12 @@ class BenchmarkSenderProtocol:
         return self._send(SendProtocolHeader.workload_statistics, workload_id)
 
     def workload_timeline_completion(self, workload_id):
-        self.logger.info("retrieve workload statistics")
+        self.logger.info("retrieve completion timeline")
         return self._send(SendProtocolHeader.workload_timeline_completion, workload_id)
+
+    def workload_timeline_failure(self, workload_id):
+        self.logger.info("retrieve failure timeline")
+        return self._send(SendProtocolHeader.workload_timeline_failure, workload_id)
 
     def workload_status(self, workload_id):
         self.logger.info("check workload status")
