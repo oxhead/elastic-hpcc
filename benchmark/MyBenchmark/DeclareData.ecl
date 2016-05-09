@@ -69,6 +69,8 @@ EXPORT DeclareData := MODULE
   EXPORT IDX_PersonAccounts_PersonID := INDEX(PersonAccounts,{PersonID,RecPos},'~PROGGUIDE::EXAMPLEDATA::KEYS::PeopleAccts.PersonID');
 
   EXPORT IDX__Person_LastName_FirstName := INDEX(Person.FilePlus,{LastName,FirstName,RecPos},'~PROGGUIDE::EXAMPLEDATA::KEYS::People.LastName.FirstName');  
+	EXPORT IDX__Person_LastName := INDEX(Person.FilePlus,{LastName,RecPos},'~PROGGUIDE::EXAMPLEDATA::KEYS::People.LastName');  
+	EXPORT IDX__Person_FirstName := INDEX(Person.FilePlus,{FirstName,RecPos},'~PROGGUIDE::EXAMPLEDATA::KEYS::People.FirstName');  
 	EXPORT IDX__Person_PersonID_LastName_FirstName := INDEX(Person.FilePlus,{LastName,FirstName,RecPos},'~PROGGUIDE::EXAMPLEDATA::KEYS::People.PersonID.LastName.FirstName');  
 	EXPORT IDX__Person_PersonID_Payload := INDEX(Person.FilePlus,{PersonID},{FirstName,LastName,MiddleInitial,Gender,Street,City,State,Zip,RecPos},'~PROGGUIDE::EXAMPLEDATA::KEYS::People.PersonID.Payload');
   EXPORT IDX__Person_LastName_FirstName_Payload := INDEX(Person.FilePlus,{LastName,FirstName},{Person.FilePlus},'~PROGGUIDE::EXAMPLEDATA::KEYS::People.LastName.FirstName.Payload');

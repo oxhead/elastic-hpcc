@@ -8,10 +8,10 @@ IMPORT Std;
 // 1,000,000 Person (parent) records and all their associated Accounts (children)
 // by starting with 1000 first names and 1000 last names
 
-P_Mult1       := 5000;
-P_Mult2       := 5000;
+P_Mult1       := 1000; //5000
+P_Mult2       := 1000;
 TotalParents  := P_Mult1 * P_Mult2;
-TotalChildren := 25000000;
+TotalChildren := 5000000; //25000000
 
 Layout_Person := RECORD
   UNSIGNED3 PersonID;
@@ -2809,9 +2809,9 @@ CountCSZ := 9540;
 
 //generate 1,000,000 unique records
 Layout_Combined CreateRecs(Layout_Combined L, INTEGER C,INTEGER W) := TRANSFORM
-  SELF.FirstName := IF(W=1,SetFnames[C],L.FirstName);
+	SELF.FirstName := IF(W=1,SetFnames[C],L.FirstName);
   SELF.LastName  := IF(W=2,SetLnames[C],L.LastName);
-  SELF := L;
+	SELF := L;
 END;
 base_fn  := NORMALIZE( BlankSet, P_Mult1, CreateRecs(LEFT, COUNTER,1));
 base_fln := NORMALIZE( base_fn , P_Mult2, CreateRecs(LEFT, COUNTER,2));
