@@ -13,10 +13,14 @@
 
     ```
 wget https://bootstrap.pypa.io/get-pip.py
-sudo pip3 get-pip.yp
+sudo python3 get-pip.py
     ```
 
   - Virtualenv
+
+    ```
+sudo pip install virtualenv
+    ```
 
 ### How to work with this tool set
 1. cd to the directory with a clone of this repo
