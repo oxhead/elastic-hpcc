@@ -35,7 +35,7 @@ def download_package(ctx, version):
 
 
 @cli.command()
-@click.argument('action', type=click.Choice(['install', 'uninstall']))
+@click.argument('action', type=click.Choice(['install', 'uninstall', 'fix']))
 @click.option('--deb', type=click.Path(exists=True, resolve_path=True))
 @click.pass_context
 def package(ctx, action, deb):
@@ -44,7 +44,8 @@ def package(ctx, action, deb):
         with parallel.CommandAgent(show_result=False) as agent:
             for host in ctx.obj['host_list']:
                 agent.submit_command("scp  -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {} {}:{}".format(deb, host, tmp_path), silent=True)
-        with parallel.CommandAgent(show_result=False) as agent:
+        # restrict the number of concurrency to avoid blocked by the APT system durning installation
+        with parallel.CommandAgent(show_result=False, concurrency=4) as agent:
             print(ctx.obj['host_list'])
             agent.submit_remote_commands(ctx.obj['host_list'], "sudo dpkg -i {}; sudo apt-get install -f -y".format(tmp_path), silent=True)
         '''
@@ -56,6 +57,10 @@ def package(ctx, action, deb):
     elif action == 'uninstall':
         with parallel.CommandAgent(show_result=False) as agent:
             agent.submit_remote_commands(ctx.obj['host_list'], "sudo dpkg -r hpccsystems-platform", silent=True)
+    elif action == 'fix':
+        tmp_path = "/tmp/{}".format(os.path.basename(deb))
+        with parallel.CommandAgent(show_result=False, concurrency=1) as agent:
+            agent.submit_remote_commands(ctx.obj['host_list'], "sudo dpkg -r hpccsystems-platform; sudo dpkg -i {}; sudo apt-get install -f -y".format(tmp_path), silent=True)
 
 @cli.command()
 @click.argument('command')
