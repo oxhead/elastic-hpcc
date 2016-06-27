@@ -34,7 +34,8 @@ def cli(ctx, **kwargs):
 @click.pass_context
 def download_dataset(ctx, dataset):
     print(dataset)
-    dataset_dir = os.path.join(get_script_dir(), "dataset")
+    dataset_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..",  "dataset")
+    print(dataset_dir)
     if 'anagram2' in dataset:
         anagram2_dataset_dir = os.path.join(dataset_dir, "Anagram2")
         execute("mkdir -p {}".format(anagram2_dataset_dir))
