@@ -181,7 +181,11 @@ def cluster_topology(ctx, show=False):
 @cli.command()
 @click.pass_context
 def print_topology(ctx):
-    print(ctx.obj['topology'])
+    for (component, nodes) in ctx.obj['topology'].items():
+        print(component)
+        for node in nodes:
+            print(node[0])
+    #print(ctx.obj['topology'])
 
 
 @cli.command()
