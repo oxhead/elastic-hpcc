@@ -27,13 +27,16 @@ class Benchmark:
         self.kwargs = kwargs
         self.monitor = Monitor(self.cluster, self.monitoring_output_dir)
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
+        self.sync_time = False
 
     def pre_run(self):
         self.logger.info("sync time across servers")
-        # https://svn.unity.ncsu.edu/svn/cls/tags/realmconfig/4.1.19/default-modules/ntp2.py
-        ntp_servers = ['152.1.227.236', '152.1.227.237', '152.1.227.238']
-        with parallel.CommandAgent(concurrency=len(self.cluster.get_nodes()), show_result=False) as agent:
-            agent.submit_remote_commands(self.cluster.get_nodes(), 'sudo ntpdate -u {}'.format(random.choice(ntp_servers)), silent=True)
+        # only needs to sync time on VCL so far
+        if self.sync_time:
+            # https://svn.unity.ncsu.edu/svn/cls/tags/realmconfig/4.1.19/default-modules/ntp2.py
+            ntp_servers = ['152.1.227.236', '152.1.227.237', '152.1.227.238']
+            with parallel.CommandAgent(concurrency=len(self.cluster.get_nodes()), show_result=False) as agent:
+                agent.submit_remote_commands(self.cluster.get_nodes(), 'sudo ntpdate -u {}'.format(random.choice(ntp_servers)), silent=True)
 
     def post_run(self):
         raise NotImplementedError()

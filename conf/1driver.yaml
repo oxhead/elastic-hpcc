@@ -1,5 +1,5 @@
 controller:
-    host: 10.25.11.107
+    host: 192.168.1.237
     num_drivers: 1
     commander:
         port: 9999
@@ -12,7 +12,7 @@ controller:
 driver:
     num_workers: 100
     hosts:
-        - 10.25.11.107
+        - 192.168.1.237
 hpcc:
     esp:
         host: 152.46.16.135

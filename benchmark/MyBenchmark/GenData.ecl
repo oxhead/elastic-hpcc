@@ -8,10 +8,10 @@ IMPORT Std;
 // 1,000,000 Person (parent) records and all their associated Accounts (children)
 // by starting with 1000 first names and 1000 last names
 
-P_Mult1       := 100; //1000
-P_Mult2       := 100;
+P_Mult1       := 2000; //2000
+P_Mult2       := 2000;
 TotalParents  := P_Mult1 * P_Mult2;
-TotalChildren := 10000; //1000000
+TotalChildren := 4000000; //1000000
 
 Layout_Person := RECORD
   UNSIGNED3 PersonID;
@@ -2831,20 +2831,20 @@ END;
 
 // sort dataset
 // dataset sorted by PersonId
-//base_fln_dist := DISTRIBUTE(base_fln,HASH32(PersonID));
-base_people   := ITERATE(base_fln,PopulateRecs(LEFT,RIGHT,HASHCRC(RIGHT.PersonID)),LOCAL);
+base_fln_dist := DISTRIBUTE(base_fln,HASH32(FirstName,LastName));
+base_people   := ITERATE(base_fln_dist,PopulateRecs(LEFT,RIGHT,HASHCRC(RIGHT.FirstName,RIGHT.LastName)),LOCAL);
 base_people_dist_by_personid := DISTRIBUTE(base_people,HASH32(PersonID));
 base_people_dist_by_firstname := DISTRIBUTE(base_people,HASH32(FirstName));
 base_people_dist_by_lastname := DISTRIBUTE(base_people,HASH32(LastName));
 base_people_dist_by_state := DISTRIBUTE(base_people,HASH32(State));
 base_people_dist_by_city := DISTRIBUTE(base_people,HASH32(City));
 base_people_dist_by_zip := DISTRIBUTE(base_people,HASH32(Zip));
-base_people_sort_by_personid := SORT(base_people_dist_by_personid,PersonID,LOCAL);
-base_people_sort_by_firstname := SORT(base_people_dist_by_personid,FirstName,LOCAL);
-base_people_sort_by_lastname := SORT(base_people_dist_by_personid,LastName,LOCAL);
-base_people_sort_by_state := SORT(base_people_dist_by_personid,State,LOCAL);
-base_people_sort_by_city := SORT(base_people_dist_by_personid,City,LOCAL);
-base_people_sort_by_zip := SORT(base_people_dist_by_personid,Zip,LOCAL);
+base_people_sort_by_personid := SORT(base_people,PersonID);
+base_people_sort_by_firstname := SORT(base_people,FirstName);
+base_people_sort_by_lastname := SORT(base_people,LastName);
+base_people_sort_by_state := SORT(base_people,State);
+base_people_sort_by_city := SORT(base_people,City);
+base_people_sort_by_zip := SORT(base_people,Zip);
 
 
 //create child records
