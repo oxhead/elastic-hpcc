@@ -28,3 +28,14 @@ def recursive_lookup(d, key, default_value=None):
         if default_value is not None:
             return default_value
         raise e
+
+
+def recursive_exists(d, key):
+    key_list = key.split(".")
+    current_d = d
+    for k in key_list[:-1]:
+        if type(current_d) is not dict:
+            return False
+        else:
+            current_d = current_d[k]
+    return key_list[-1] in current_d

@@ -18,8 +18,14 @@ class BaseConfig:
     def __init__(self, config):
         self.config = config
 
+    def __getitem__(self, key):
+        return self.lookup_config(key)
+
     def to_file(self, config_path):
         BaseConfig.save_file(self.config, config_path)
+
+    def has_key(self, key):
+        return colleciton_util.recursive_exists(self.config, key)
 
     def get_config(self, key, default_value=None):
         if key not in self.config:

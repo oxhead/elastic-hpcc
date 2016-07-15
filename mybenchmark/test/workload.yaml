@@ -1,0 +1,16 @@
+workload:
+    type: constant
+    num_queries: 10
+    period: 120
+    distribution:
+        type: pareto
+        alpha: 3
+    selection:
+        type: uniform
+    endpoints:
+        - http://192.168.1.252:8002/WsEcl/json/query/roxie/bm_1
+    applications:
+        bm1:
+            query_name: bm_1
+            query_key: firstname
+            key_file: /home/ubuntu/elastic-hpcc/benchmark/dataset/firstname_list_builtin.txt

@@ -70,6 +70,14 @@ class RoxieBenchmark(base.Benchmark):
             with open(metrics_output_file, 'w') as f:
                 json.dump(metrics, f, indent=4, sort_keys=True)
 
+        self.logger.info("exporting Roxie load distribution")
+        workload_distribution = {}
+        for node in self.cluster.get_nodes():
+            workload_distribution[node.get_ip()] = roxie.get_workload_distribution(node)
+        workload_distribution_output_file = os.path.join(self.result_output_dir, "workload_distribution.json")
+        with open(workload_distribution_output_file, 'w') as f:
+            json.dump(workload_distribution, f, indent=4, sort_keys=True)
+
     def run_benchmark(self):
         self.logger.info("run benchmark")
         self.logger.info("output dir = {}".format(self.output_dir))

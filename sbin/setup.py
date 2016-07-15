@@ -10,6 +10,7 @@ setup(
         'thor',
         'roxie',
         'benchmark',
+        'cluster',
     ],
     include_package_data=True,
     install_requires=[
@@ -26,6 +27,7 @@ setup(
             'thor=thor:cli',
             'roxie=roxie:cli',
             'benchmark=benchmark:cli',
+            'cluster=cluster:cli',
         ]
     }
 )

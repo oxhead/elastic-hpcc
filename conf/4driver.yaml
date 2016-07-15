@@ -1,0 +1,20 @@
+controller:
+    host: 192.168.1.237
+    num_drivers: 4
+    commander:
+        port: 9999
+    job_queue:
+        port: 9998
+    report_queue:
+        port: 9997
+    manager:
+        port: 9996
+driver:
+    num_workers: 30
+    hosts:
+        - 192.168.1.115
+        - 192.168.1.116
+        - 192.168.1.118
+        - 192.168.1.119
+workload:
+    num_quries: 100

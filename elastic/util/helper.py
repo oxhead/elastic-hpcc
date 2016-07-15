@@ -3,6 +3,7 @@ import time
 import datetime
 import uuid
 import math
+import hashlib
 
 
 def get_timestamp():
@@ -29,3 +30,17 @@ def string_grep(s, word):
 def parse_file(file_path):
     with open(file_path, 'r') as f:
         return [row.rstrip() for row in f.read().splitlines()]
+
+
+def md5hash_raw(s):
+    return hashlib.md5(s.encode('utf-8'))
+
+
+def md5hash(content):
+    if type(content) is str:
+        return int(md5hash_raw(content).hexdigest(), 16)
+    else:
+        m = hashlib.md5()
+        for s in content:
+            m.update(md5hash_raw(repr(s)).digest())
+        return int(m.hexdigest(), 16)

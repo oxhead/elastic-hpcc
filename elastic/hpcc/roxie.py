@@ -20,6 +20,22 @@ def reset_metrics(node):
     RemoteCommand(node.get_ip(), "sudo /opt/HPCCSystems/bin/testsocket {} '<control:resetquerystats/>'".format(node.get_ip()), capture=True, silent=True).start()
 
 
+def get_workload_distribution(node):
+    grep_cmd = "grep '{}' /var/log/HPCCSystems/myroxie/roxie.log | wc -l"
+    index_cmd = RemoteCommand(node.get_ip(), grep_cmd.format("23CRoxieIndexReadActivity"), capture=True, silent=True)
+    fetch_cmd = RemoteCommand(node.get_ip(), grep_cmd.format("19CRoxieFetchActivity"), capture=True, silent=True)
+    index_cmd.start()
+    fetch_cmd.start()
+
+    return {
+        "IndexReadActivity": index_cmd.output,
+        "FetchActivity": fetch_cmd.output,
+    }
+
+
+def switch_data_layout(node, idx):
+    pass
+
 
 
 

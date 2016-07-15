@@ -19,7 +19,6 @@ class BenchmarkService:
         self.config = config
         self.commander = BenchmarkCommander(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
-        self.sync_time = False
 
     def deploy_config(self):
         self.logger.info("deploy benchmark config")
@@ -35,19 +34,17 @@ class BenchmarkService:
             deploy_set.add(driver_node)
         with parallel.CommandAgent(concurrency=len(deploy_set)) as agent:
             for host in deploy_set:
-                agent.submit_command('scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {} {}:{}'.format(tmp_config_path, host, config_path))
+                agent.submit_command('scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {} {}:{}'.format(tmp_config_path, host, config_path), silent=True)
 
     def start(self):
         self.logger.info("start benchmark service")
         self.deploy_config()
         self.logger.info("sync time across servers")
-
-        if self.sync_time:
-            # https://svn.unity.ncsu.edu/svn/cls/tags/realmconfig/4.1.19/default-modules/ntp2.py
-            ntp_servers = ['152.1.227.236', '152.1.227.237', '152.1.227.238']
-            benchmark_nodes = [self.config.get_controller()] + self.config.get_drivers()
-            with parallel.CommandAgent(concurrency=len(benchmark_nodes), show_result=False) as agent:
-                agent.submit_remote_commands(benchmark_nodes, 'sudo ntpdate -u {}'.format(random.choice(ntp_servers)), silent=True)
+        # https://svn.unity.ncsu.edu/svn/cls/tags/realmconfig/4.1.19/default-modules/ntp2.py
+        #ntp_servers = ['152.1.227.236', '152.1.227.237', '152.1.227.238']
+        #benchmark_nodes = [self.config.get_controller()] + self.config.get_drivers()
+        #with parallel.CommandAgent(concurrency=len(benchmark_nodes), show_result=False) as agent:
+        #    agent.submit_remote_commands(benchmark_nodes, 'sudo ntpdate -u {}'.format(random.choice(ntp_servers)), silent=True)
 
         with parallel.CommandAgent(show_result=True) as agent:
             # TODO: a better way? Should not use fixed directory

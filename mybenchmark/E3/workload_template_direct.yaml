@@ -1,0 +1,24 @@
+workload:
+    type: constant
+    num_queries: 100
+    period: 10
+    distribution:
+        type: pareto
+        alpha: 3
+    selection:
+        type: uniform
+    endpoints:
+        - http://192.168.1.253:9876
+        - http://192.168.1.254:9876
+        - http://192.168.1.3:9876
+        - http://192.168.1.39:9876
+    applications:
+        bm1_distribution:
+            query_name: bm_1
+            query_key: firstname
+            key_file: /home/ubuntu/elastic-hpcc/benchmark/dataset/firstname_list_builtin.txt
+        bm1_single:
+            query_name: bm_1
+            query_key: firstname
+            key_list:
+                - MARY

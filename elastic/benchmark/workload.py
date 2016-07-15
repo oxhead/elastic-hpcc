@@ -4,13 +4,31 @@ from enum import Enum
 import random
 import logging
 import pickle
+import yaml
+import hashlib
 
 from elastic.benchmark import config
 from elastic.util import helper
 
 
 class WorkloadConfig(config.BaseConfig):
-    pass
+    @staticmethod
+    def parse_file(config_path):
+        with open(config_path, 'r') as f:
+            return WorkloadConfig(yaml.load(f))
+    def merge(self, added):
+        '''
+        This is a workaround.
+        :param added: another config to be merged
+        :return:
+        '''
+        self.set_config('workload.type', added.lookup_config('workload.type', self['workload.type']))
+        self.set_config('workload.num_queries', added.lookup_config('workload.num_queries', self['workload.num_queries']))
+        self.set_config('workload.period', added.lookup_config('workload.period', self['workload.period']))
+        self.set_config('workload.applications', added.lookup_config('workload.applications', self['workload.applications']))
+        self.set_config('workload.distribution', added.lookup_config('workload.distribution', self['workload.distribution']))
+        self.set_config('workload.selection', added.lookup_config('workload.selection', self['workload.selection']))
+        self.set_config('workload.endpoints', added.lookup_config('workload.endpoints', self['workload.endpoints']))
 
 
 class WorkloadType(Enum):
@@ -34,6 +52,15 @@ class WorkloadGenerator:
     def next(self):
         pass
 
+    def __repr__(self):
+        return str(self.__class__.__name__)
+
+    def __eq__(self, other):
+        return self.__repr__() == other.__repr__()
+
+    def __hash__(self):
+        return helper.md5hash(self.__repr__())
+
 
 class ConstantWorkloadGenerator(WorkloadGenerator):
     def __init__(self, volume):
@@ -41,6 +68,9 @@ class ConstantWorkloadGenerator(WorkloadGenerator):
 
     def next(self):
         return self.volume
+
+    def __repr__(self):
+        return "".join([str(self.__class__.__name__), str(self.volume)])
 
 
 class UniformWorkloadGenerator(WorkloadGenerator):
@@ -51,6 +81,9 @@ class UniformWorkloadGenerator(WorkloadGenerator):
     def next(self):
         return int(random.uniform(self.mu, self.sigma))
 
+    def __repr__(self):
+        return "".join([str(self.__class__.__name__), str(self.mu), str(self.sigma)])
+
 
 class ExponentialWorkloadGenerator(WorkloadGenerator):
     def __init__(self, lambd):
@@ -59,8 +92,11 @@ class ExponentialWorkloadGenerator(WorkloadGenerator):
     def next(self):
         return int(random.expovariate(self.lambd))
 
+    def __key(self):
+        return "".join([str(self.__class__.__name__), str(self.lambd)])
 
-class RoxieTargetDispatcher():
+
+class RoxieTargetDispatcher:
     def __init__(self, target_list):
         self.target_list = target_list
         self.num_choices = len(self.target_list)
@@ -143,6 +179,16 @@ class Workload:
         workload_generator = Workload.new_generator(workload_type, num_queries)
         return Workload(workload_type, workload_generator, application_selection, period=period)
 
+    # http://stackoverflow.com/questions/2909106/python-whats-a-correct-and-good-way-to-implement-hash
+    def __repr__(self):
+        return "".join([str(self.workload_type), "[generator=", repr(self.workload_generator), "[app=", repr(self.application_selection), str(self.period)])
+
+    def __eq__(self, other):
+        return self.__repr__() == other.__repr__()
+
+    def __hash__(self):
+        return helper.md5hash(self.__repr__())
+
 
 class SelectionModel:
 
@@ -172,9 +218,9 @@ class SelectionModel:
 
     @staticmethod
     def new(config_object, objects):
-        # print(config_object)
         logger = logging.getLogger('.'.join([__name__, SelectionModel.__class__.__name__]))
         logger.debug(config_object)
+        logger.debug("key")
         # print("@", config_object['type'].lower())
         distribution_type = DistributionType[config_object['type'].lower()]
         if distribution_type == DistributionType.fixed:
@@ -261,6 +307,15 @@ class SelectionModel:
         probability_list = SelectionModel._produce_probability_distribution(rv)
         return SelectionModel(DistributionType.pareto, probability_list, objects)
 
+    def __repr__(self):
+        return "".join([str(self.__class__.__name__), "[type=", repr(self.distribution), "[obj_key=", repr(self.key_list[0]), "[obj_val=", repr(self.objects[self.key_list[0]]), str(len(self.key_list))])
+
+    def __eq__(self, other):
+        return self.__repr__() == other.__repr__()
+
+    def __hash__(self):
+        return helper.md5hash(self.__repr__())
+
 
 class WorkloadItem:
     def __init__(self, wid, query_name, endpoint, query_key, key):
@@ -303,6 +358,11 @@ class WorkloadExecutionTimeline:
                 new_workload_timeline[t].append(workload_item)
         return WorkloadExecutionTimeline(workload.period, new_workload_timeline)
 
+    @staticmethod
+    def from_pickle(file_path):
+        with open(file_path, 'rb') as f:
+            return pickle.load(f)
+
     def __init__(self, period, timeline):
         self.period = period
         self.timeline = timeline
@@ -329,3 +389,12 @@ class RoxieApplication:
         if "8002" in endpoint:
             endpoint = "{}/WsEcl/json/query/roxie/{}".format(endpoint, self.query_name)
         return self.query_name, endpoint, self.query_key, self.selection_model.select()
+
+    def __repr__(self):
+        return "".join([str(self.__class__.__name__), "[type=", self.query_name, str(len(self.endpoint_list)), repr(self.selection_model)])
+
+    def __eq__(self, other):
+        return self.__repr__() == other.__repr__()
+
+    def __hash__(self):
+        return helper.md5hash(self.__repr__())

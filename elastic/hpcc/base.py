@@ -16,6 +16,9 @@ class Cluster(base.Cluster):
         self.cluster_type = cluster_type
         self.nodes = nodes
 
+    def get_num_nodes(self):
+        return len(self.nodes)
+
 
 class HPCCCluster(base.Cluster):
 
