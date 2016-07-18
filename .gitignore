@@ -143,3 +143,4 @@ build/
 # related to this project
 logs/
 conf/benchmark.yaml
+**/.workload_timeline/

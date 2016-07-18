@@ -10,7 +10,8 @@ controller:
     manager:
         port: 9996
 driver:
-    num_workers: 30
+    num_workers: 32
+    query_timeout: 30
     hosts:
         - 192.168.1.115
         - 192.168.1.116

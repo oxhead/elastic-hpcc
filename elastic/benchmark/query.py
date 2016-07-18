@@ -53,16 +53,16 @@ def new_session():
     return requests.Session()
 
 
-def execute_workload_item(session, workload_item):
+def execute_workload_item(session, workload_item, timeoue=30):
     try:
-        return run_query(session, workload_item.query_name, workload_item.endpoint, workload_item.query_key, workload_item.key)
+        return run_query(session, workload_item.query_name, workload_item.endpoint, workload_item.query_key, workload_item.key, timeout)
     except Exception as e:
         print(e)
         pass
     return False, 0
 
 
-def run_query(session, query_name, endpoint, query_key, key):
+def run_query(session, query_name, endpoint, query_key, key, timeout):
     headers = {
         "Content-Type": "application/json"
     }
@@ -74,7 +74,7 @@ def run_query(session, query_name, endpoint, query_key, key):
     #req = requests.Request('POST', endpoint, headers=headers, data=json.dumps(payload))
     #prepared = req.prepare()
     #r = session.send(prepared, timeout=10)
-    r = requests.post(endpoint, headers=headers, data=json.dumps(payload), timeout=10)
+    r = requests.post(endpoint, headers=headers, data=json.dumps(payload), timeout=timeout)
     #print("{} {} {} {}".format(query_name, endpoint, query_key, key))
     print("{} {} {} {} {} {}".format(query_name, endpoint, query_key, key, r.status_code, len(r.text)))
     logger.info("{} {} {} {} {} {}".format(query_name, endpoint, query_key, key, r.status_code, len(r.text)))

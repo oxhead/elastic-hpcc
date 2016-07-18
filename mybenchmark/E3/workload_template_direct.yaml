@@ -17,8 +17,13 @@ workload:
             query_name: bm_1
             query_key: firstname
             key_file: /home/ubuntu/elastic-hpcc/benchmark/dataset/firstname_list_builtin.txt
-        bm1_single:
+        bm1_single1:
             query_name: bm_1
             query_key: firstname
             key_list:
                 - MARY
+        bm1_single2:
+            query_name: bm_1
+            query_key: firstname
+            key_list:
+                - BARBARA

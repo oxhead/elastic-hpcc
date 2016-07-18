@@ -24,6 +24,7 @@ class BenchmarkConfig(config.BaseConfig):
     CONTROLLER_MANAGER_PORT = "controller.manager.port"
 
     DRIVER_NUM_WORKER = "driver.num_workers"
+    DRIVER_QUERY_TIMEOUT = "driver.query_timeout"
 
     WORKLOAD_NUM_QUERIES = "workload.num_queries"
     WORKLOAD_APPLICATIONS = "workload.applications"
@@ -375,6 +376,7 @@ class BenchmarkDriver(BenchmarkNode):
         super(BenchmarkDriver, self).__init__(config_path)
         self.logger.info("Driver initing")
         self.num_workers = self.config.lookup_config(BenchmarkConfig.DRIVER_NUM_WORKER)
+        self.query_timeout = self.config.lookup_config(BenchmarkConfig.DRIVER_QUERY_TIMEOUT, 30)
         self.worker_pool = gevent.pool.Pool(self.num_workers)
         self.worker_queue = gevent.queue.Queue()
         self.workload = None
@@ -455,7 +457,7 @@ class BenchmarkDriver(BenchmarkNode):
             worker_item = self.worker_queue.get()
             self.logger.info("worker {} is processing roxie query {}".format(worker_id, worker_item.wid))
             start_time = time.time()
-            success, output_size = query.execute_workload_item(session, worker_item)
+            success, output_size = query.execute_workload_item(session, worker_item, timeout=self.query_timeout)
             elapsed_time = time.time() - start_time
             reporter_procotol.report(worker_item.wid, start_time, elapsed_time, success, output_size)
 

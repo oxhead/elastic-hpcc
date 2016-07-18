@@ -16,7 +16,7 @@ def main():
     default_setting.set_config('workload.num_queries', 100)
     default_setting.set_config('workload.period', 120)
 
-    output_dir = os.path.join(default_setting['experiment.result_dir'], default_setting['experiment.id'], "layout_1r_{}q_{}sec".format(default_setting['workload.num_queries'], default_setting['workload.period']))
+    output_dir = os.path.join(default_setting['experiment.result_dir'], default_setting['experiment.id'], "locality_layout_2r_{}q_{}sec".format(default_setting['workload.num_queries'], default_setting['workload.period']))
     run_ids = range(1, 4)
     for run_id in run_ids:
         variable_setting = [
@@ -32,8 +32,12 @@ def main():
                 'workload.distribution': {"type": "pareto", "alpha": 3},
             },
             {
-                'experiment.application': 'bm1_single',
-                'experiment.output_dir': os.path.join(output_dir, 'single_{}'.format(run_id)),
+                'experiment.application': 'bm1_single1',
+                'experiment.output_dir': os.path.join(output_dir, 'single1_{}'.format(run_id)),
+            },
+            {
+                'experiment.application': 'bm1_single2',
+                'experiment.output_dir': os.path.join(output_dir, 'single2_{}'.format(run_id)),
             }
         ]
 
