@@ -69,7 +69,7 @@
                 channelsPerNode="1"
                 checkCompleted="true"
                 checkFileDate="true"
-                copyResources="true"
+                copyResources="false"
                 coresPerQuery="0"
                 crcResources="false"
                 cyclicOffset="1"
@@ -156,13 +156,13 @@
                 remoteFilesExpire="3600000"
                 roxieMulticastEnabled="true"
                 serverSideCacheSize="0"
-                serverThreads="30"
+                serverThreads="60"
                 simpleLocalKeyedJoins="true"
                 siteCertificate=""
                 slaTimeout="2000"
                 slaveConfig="full redundancy"
                 slaveQueryReleaseDelaySeconds="60"
-                slaveThreads="30"
+                slaveThreads="60"
                 soapTraceLevel="1"
                 socketCheckInterval="5000"
                 SSHidentityfile="$HOME/.ssh/id_rsa"
@@ -200,13 +200,13 @@
    <RoxieFarmProcess aclName=""
                      listenQueue="200"
                      name="farm1"
-                     numThreads="30"
+                     numThreads="60"
                      port="9876"
                      requestArrayThreads="5"/>
    <RoxieFarmProcess aclName=""
                      listenQueue="200"
                      name="farm2"
-                     numThreads="30"
+                     numThreads="60"
                      port="0"
                      requestArrayThreads="5"/>
    <RoxieServerProcess computer="node001253" name="node001253" netAddress="192.168.1.253"/>
@@ -478,10 +478,10 @@
    <Category dir="/var/lib/[NAME]/[INST]" name="run"/>
    <Category dir="/etc/[NAME]/[INST]" name="conf"/>
    <Category dir="/var/lib/[NAME]/[INST]/temp" name="temp"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data2/[COMPONENT]" name="data2"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data3/[COMPONENT]" name="data3"/>
-   <Category dir="/var/lib/[NAME]/hpcc-mirror/[COMPONENT]" name="mirror"/>
+   <Category dir="/data/hpcc-data/[COMPONENT]" name="data"/>
+   <Category dir="/data/hpcc-data2/[COMPONENT]" name="data2"/>
+   <Category dir="/data/hpcc-data3/[COMPONENT]" name="data3"/>
+   <Category dir="/data/hpcc-mirror/[COMPONENT]" name="mirror"/>
    <Category dir="/var/lib/[NAME]/queries/[INST]" name="query"/>
    <Category dir="/var/lock/[NAME]/[INST]" name="lock"/>
   </Directories>
@@ -895,6 +895,10 @@
    <ThorSlaveProcess computer="node001254" name="s2"/>
    <ThorSlaveProcess computer="node001003" name="s3"/>
    <ThorSlaveProcess computer="node001039" name="s4"/>
+   <ThorSlaveProcess computer="node001004" name="s5"/>
+   <ThorSlaveProcess computer="node001040" name="s6"/>
+   <ThorSlaveProcess computer="node001041" name="s7"/>
+   <ThorSlaveProcess computer="node001042" name="s8"/>
    <ThorMasterProcess computer="node001252" name="m1"/>
    <Debug/>
    <SSH SSHidentityfile="$HOME/.ssh/id_rsa"

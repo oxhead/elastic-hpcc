@@ -128,13 +128,14 @@ def service(ctx, action, component):
                     with parallel.CommandAgent() as agent:
                         agent.submit_remote_commands(ctx.obj['host_list'], cmd, check=False, silent=False)
         else:
+            # needs to start the master for avoiding failure when the cluster size is more than 8
+            #if action == 'start':
+            #    RemoteCommand(ctx.obj['topology']['esp'][0][0], "sudo service hpcc-init {}".format(action), silent=False, check=True).start()
             with parallel.CommandAgent() as agent:
-                agent.submit_remote_commands(ctx.obj['host_list'], "sudo service hpcc-init {}".format(action), check=False, silent=True, capture=True)
-            #with parallel.CommandAgent() as agent:
-            #    agent.submit_remote_commands(ctx.obj['host_list'], "sudo service dafilesrv {}".format(action), check=False, silent=True, capture=True)
+                    agent.submit_remote_commands(ctx.obj['host_list'], "sudo service hpcc-init {}".format(action), check=False, silent=True, capture=True)
             if action == 'stop':
                 with parallel.CommandAgent() as agent:
-                    agent.submit_remote_commands(ctx.obj['host_list'], "sudo pkill -9 dafilesrv", check=False, silent=True, capture=True)
+                    agent.submit_remote_commands(ctx.obj['host_list'], "sudo pkill -9 dafilesrv; sudo pkill -9 roxie", check=False, silent=True, capture=True)
 
 @cli.command()
 @click.option('-u', '--username', default='hpcc')
@@ -181,11 +182,7 @@ def cluster_topology(ctx, show=False):
 @cli.command()
 @click.pass_context
 def print_topology(ctx):
-    for (component, nodes) in ctx.obj['topology'].items():
-        print(component)
-        for node in nodes:
-            print(node[0])
-    #print(ctx.obj['topology'])
+    print(ctx.obj['topology'])
 
 
 @cli.command()

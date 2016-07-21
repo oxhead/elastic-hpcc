@@ -1,0 +1,47 @@
+workload:
+    type: constant
+    num_queries: 100
+    period: 10
+    distribution:
+        type: pareto
+        alpha: 3
+    selection:
+        type: uniform
+    endpoints:
+        - http://192.168.1.253:9876
+        - http://192.168.1.254:9876
+        - http://192.168.1.3:9876
+        - http://192.168.1.39:9876
+        - http://192.168.1.4:9876
+        - http://192.168.1.40:9876
+        - http://192.168.1.41:9876
+        - http://192.168.1.42:9876
+    applications:
+        search_firstname_distribution:
+            query_name: search_firstname
+            query_key: firstname
+            key_file: /home/ubuntu/elastic-hpcc/benchmark/dataset/firstname_list_builtin.txt
+        search_firstname_single1:
+            query_name: search_firstname
+            query_key: firstname
+            key_list:
+                - MARY
+        search_firstname_single2:
+            query_name: search_firstname
+            query_key: firstname
+            key_list:
+                - BARBARA
+        random_search_firstname_distribution:
+            query_name: random_search_firstname
+            query_key: firstname
+            key_file: /home/ubuntu/elastic-hpcc/benchmark/dataset/firstname_list_builtin.txt
+        random_search_firstname_single1:
+            query_name: random_search_firstname
+            query_key: firstname
+            key_list:
+                - MARY
+        random_search_firstname_single2:
+            query_name: random_search_firstname
+            query_key: firstname
+            key_list:
+                - BARBARA

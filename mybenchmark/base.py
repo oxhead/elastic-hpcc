@@ -54,9 +54,9 @@ class WorkloadTimelineManager:
     def _generate_cache_path(self, workload):
         return os.path.join(self.store_dir, str(hash(workload)))
 
-    def cache(self, workload):
+    def cache(self, workload, update=False):
         cache_path = self._generate_cache_path(workload)
-        if os.path.exists(cache_path):
+        if (not update) and (os.path.exists(cache_path)):
             print("loading workload timeline from {}".format(cache_path))
             return WorkloadTimelineManager.load_timeline(cache_path)
         else:
@@ -104,7 +104,7 @@ class Experiment:
             print("Failed to run the experiment", e)
 
 
-def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, wait_time=60):
+def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, timeline_reuse=False, wait_time=60):
     for variable_setting in variable_setting_list:
         per_setting = copy.deepcopy(default_setting)
 
@@ -122,7 +122,7 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
 
         workload_timeline_dir = os.path.join(experiment_dir, '.workload_timeline') if experiment_dir else '.workload_timeline'
         workload_timeline_manager = WorkloadTimelineManager(store_dir=workload_timeline_dir)
-        workload_timeline = workload_timeline_manager.cache(Workload.from_config(workload_config))
+        workload_timeline = workload_timeline_manager.cache(Workload.from_config(workload_config), update=not timeline_reuse)
         #for k, vs in workload_timeline.timeline.items():
         #    for v in vs:
         #            print(v.wid, v.key)

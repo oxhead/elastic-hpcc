@@ -192,12 +192,13 @@ class Workload:
 
 class SelectionModel:
 
-    def __init__(self, distribution_type, probability_list, objects):
+    def __init__(self, distribution_type, probability_list, objects, **kwargs):
         self.distribution = distribution_type
         self.probability_list = probability_list
         self.objects = objects
         # TODO: not efficient?
         self.key_list = list(self.objects.keys()) if type(self.objects) is dict else list(range(len(objects)))
+        self.kwargs = kwargs
 
     def select(self):
         return self.objects[self.key_list[self.select_index()]]
@@ -263,52 +264,53 @@ class SelectionModel:
         # random variables
         rv = [random.uniform(0, 1) for _ in range(len(objects))]
         probability_list = SelectionModel._produce_probability_distribution(rv)
-        return SelectionModel(DistributionType.uniform, probability_list, objects)
+        return SelectionModel(DistributionType.uniform, probability_list, objects, param=[0, 1])
 
     @staticmethod
     def new_gauss(objects, mu=1, sigma=0.2):
         # random variables
         rv = [random.gauss(mu, sigma) for _ in range(len(objects))]
         probability_list = SelectionModel._produce_probability_distribution(rv)
-        return SelectionModel(DistributionType.gaussian, probability_list, objects)
+        return SelectionModel(DistributionType.gaussian, probability_list, objects, param=[mu, sigma])
 
     @staticmethod
     def new_exponential(objects, lambd=1):
         # random variables
         rv = [random.expovariate(lambd) for _ in range(len(objects))]
         probability_list = SelectionModel._produce_probability_distribution(rv)
-        return SelectionModel(DistributionType.exponential, probability_list, objects)
+        return SelectionModel(DistributionType.exponential, probability_list, objects, param=[lambd])
 
     @staticmethod
     def new_longnormal(objects, mu=0, sigma=1):
         # random variables
         rv = [random.lognormvariate(mu, sigma) for _ in range(len(objects))]
         probability_list = SelectionModel._produce_probability_distribution(rv)
-        return SelectionModel(DistributionType.longnormal, probability_list, objects)
+        return SelectionModel(DistributionType.longnormal, probability_list, objects, param=[mu, sigma])
 
     @staticmethod
     def new_beta(objects, alpha=2, beta=5):
         # random variables
         rv = [random.betavariate(alpha, beta) for _ in range(len(objects))]
         probability_list = SelectionModel._produce_probability_distribution(rv)
-        return SelectionModel(DistributionType.beta, probability_list, objects)
+        return SelectionModel(DistributionType.beta, probability_list, objects, param=[alpha, beta])
 
     @staticmethod
     def new_gamma(objects, alpha=9., beta=.5):
         # random variables
         rv = [random.gammavariate(alpha, beta) for _ in range(len(objects))]
         probability_list = SelectionModel._produce_probability_distribution(rv)
-        return SelectionModel(DistributionType.gamma, probability_list, objects)
+        return SelectionModel(DistributionType.gamma, probability_list, objects, param=[alpha, beta])
 
     @staticmethod
     def new_pareto(objects, alpha=3):
         # random variables
         rv = [random.paretovariate(alpha) for _ in range(len(objects))]
         probability_list = SelectionModel._produce_probability_distribution(rv)
-        return SelectionModel(DistributionType.pareto, probability_list, objects)
+        return SelectionModel(DistributionType.pareto, probability_list, objects, param=[alpha])
 
     def __repr__(self):
-        return "".join([str(self.__class__.__name__), "[type=", repr(self.distribution), "[obj_key=", repr(self.key_list[0]), "[obj_val=", repr(self.objects[self.key_list[0]]), str(len(self.key_list))])
+        paremeter_str = "_".join([str(s) for s in self.kwargs['param']])
+        return "".join([str(self.__class__.__name__), "[type=", repr(self.distribution), "[param=", paremeter_str, "[obj_key=", repr(self.key_list[0]), "[obj_val=", repr(self.objects[self.key_list[0]]), str(len(self.key_list))])
 
     def __eq__(self, other):
         return self.__repr__() == other.__repr__()
