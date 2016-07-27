@@ -53,9 +53,9 @@ EXPORT DeclareData := MODULE
 		DATASET(Layout_Accounts) Accounts;
 	END;
 
-  EXPORT Person_Dist := MODULE
-	  EXPORT DATA_PATH := OUTPUT_DIR+'Dist::Data_People_';
-		EXPORT KEY_PATH := OUTPUT_DIR+'Dist::Idx_People_';
+  EXPORT Person_Unsorted := MODULE
+	  EXPORT DATA_PATH := OUTPUT_DIR+'Data_Unsorted_People_';
+		EXPORT KEY_PATH := OUTPUT_DIR+'Idx_Unsorted_People_';
 		EXPORT FilePlus_PersonID := DATASET(DATA_PATH+'PersonID',{Layout_Person,UNSIGNED8 RecPos{virtual(fileposition)}}, THOR);
 		EXPORT FilePlus_FirstName := DATASET(DATA_PATH+'FirstName',{Layout_Person,UNSIGNED8 RecPos{virtual(fileposition)}}, THOR);
 	  EXPORT FilePlus_LastName := DATASET(DATA_PATH+'LastName',{Layout_Person,UNSIGNED8 RecPos{virtual(fileposition)}}, THOR);
@@ -70,9 +70,9 @@ EXPORT DeclareData := MODULE
 		EXPORT IDX_Zip := INDEX(FilePlus_Zip,{Zip,RecPos},KEY_PATH+'Zip');	
 	END;	
 	
-	EXPORT Person_Sort := MODULE
-	  EXPORT DATA_PATH := OUTPUT_DIR+'Sort::Data_People_';
-		EXPORT KEY_PATH := OUTPUT_DIR+'Sort::Idx_People_';
+	EXPORT Person_Sorted := MODULE
+	  EXPORT DATA_PATH := OUTPUT_DIR+'Data_Sorted_People_';
+		EXPORT KEY_PATH := OUTPUT_DIR+'Idx_Sorted_People_';
 		EXPORT FilePlus_PersonID := DATASET(DATA_PATH+'PersonID',{Layout_Person,UNSIGNED8 RecPos{virtual(fileposition)}}, THOR);
 		EXPORT FilePlus_FirstName := DATASET(DATA_PATH+'FirstName',{Layout_Person,UNSIGNED8 RecPos{virtual(fileposition)}}, THOR);
 	  EXPORT FilePlus_LastName := DATASET(DATA_PATH+'LastName',{Layout_Person,UNSIGNED8 RecPos{virtual(fileposition)}}, THOR);
