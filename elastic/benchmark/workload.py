@@ -7,6 +7,11 @@ import pickle
 import yaml
 import hashlib
 
+import numpy as np
+import scipy.interpolate as interpolate
+from scipy import stats
+
+
 from elastic.benchmark import config
 from elastic.util import helper
 
@@ -40,12 +45,14 @@ class WorkloadType(Enum):
 class DistributionType(Enum):
     fixed = 0
     uniform = 1
-    gaussian = 2
+    normal = 2
     exponential = 3
-    long_normal = 4
+    lognormal = 4
     beta = 5
     gamma = 6
     pareto = 7
+    zipf = 8
+    powerlaw = 9
 
 
 class WorkloadGenerator:
@@ -181,7 +188,11 @@ class Workload:
 
     # http://stackoverflow.com/questions/2909106/python-whats-a-correct-and-good-way-to-implement-hash
     def __repr__(self):
-        return "".join([str(self.workload_type), "[generator=", repr(self.workload_generator), "[app=", repr(self.application_selection), str(self.period)])
+        apps_repr = ""
+        for app_name in sorted(self.application_selection.objects.keys()):
+            app = self.application_selection.objects[app_name]
+            apps_repr += "[app={}".format(repr(app))
+        return "".join([str(self.workload_type), "[generator=", repr(self.workload_generator), repr(self.application_selection.distribution), "[apps=", apps_repr, str(self.period)])
 
     def __eq__(self, other):
         return self.__repr__() == other.__repr__()
@@ -204,10 +215,20 @@ class SelectionModel:
         return self.objects[self.key_list[self.select_index()]]
 
     def select_index(self):
-        return bisect.bisect_left(self.probability_list, random.random())
+        return bisect.bisect_left(self.probability_list, random.random()) - 1
 
     @staticmethod
-    def _produce_probability_distribution(rv):
+    def _produce_probability_distribution(rv_list, bins):
+        hist, bin_edges = np.histogram(rv_list, bins=bins, density=True)
+        cum_values = np.zeros(bin_edges.shape)
+        cum_values[1:] = np.cumsum(hist * np.diff(bin_edges))
+        cdf = interpolate.interp1d(cum_values, bin_edges)
+        pdf = interpolate.interp1d(bin_edges, cum_values)
+        x_min, x_max = cdf([0, 0.99999999])
+        return pdf(np.arange(x_min, x_max, (x_max - x_min) / bins))
+
+    @staticmethod
+    def _produce_probability_distribution2(rv):
         # probability
         rv_sum = sum(rv)
         rv_p = [_ / rv_sum for _ in rv]
@@ -220,27 +241,48 @@ class SelectionModel:
     @staticmethod
     def new(config_object, objects):
         logger = logging.getLogger('.'.join([__name__, SelectionModel.__class__.__name__]))
+        #logger.info('Generating distribution')
         logger.debug(config_object)
         logger.debug("key")
         # print("@", config_object['type'].lower())
         distribution_type = DistributionType[config_object['type'].lower()]
+        n_samples = 1000000  # should be accurate enough
+
+        params = []
+        statistics_distribution = None
         if distribution_type == DistributionType.fixed:
-            return SelectionModel.new_fixed(objects, config_object['percentage'])
+            return SelectionModel.new_fixed(objects, percentages=config_object['percentage'], n_samples=n_samples)
         elif distribution_type == DistributionType.uniform:
-            return SelectionModel.new_uniform(objects)
-        elif distribution_type == DistributionType.gaussian:
-            return SelectionModel.new_gauss(objects, config_object['mu'], config_object['sigma'])
+            params = []
+            statistics_distribution = stats.uniform;
+        elif distribution_type == DistributionType.normal:
+            params = []
+            statistics_distribution = stats.norm
         elif distribution_type == DistributionType.exponential:
-            return SelectionModel.new_exponential(objects, config_object['lambda'])
-        elif distribution_type == DistributionType.long_normal:
-            return SelectionModel.new_longnormal(objects, config_object['mu'], config_object['sigma'])
+            params = []
+            statistics_distribution = stats.expon
+        elif distribution_type == DistributionType.lognormal:
+            params = [config_object['shape']]
+            statistics_distribution = stats.lognorm
         elif distribution_type == DistributionType.beta:
-            return SelectionModel.new_beta(objects, config_object['alpha'], config_object['beta'])
+            params = [config_object['alpha'], config_object['beta']]
+            statistics_distribution = stats.beta
         elif distribution_type == DistributionType.gamma:
-            return SelectionModel.new_gamma(objects, config_object['alpha'], config_object['beta'])
+            params = [config_object['shape']]
+            statistics_distribution = stats.gamma
         elif distribution_type == DistributionType.pareto:
-            return SelectionModel.new_pareto(objects, config_object['alpha'])
-        raise Exception("Undefined distribution type")
+            params = [config_object['shape']]
+            statistics_distribution = stats.pareto
+        elif distribution_type == DistributionType.powerlaw:
+            params = [config_object['shape']]
+            statistics_distribution = stats.powerlaw
+
+        else:
+            raise Exception("Undefined distribution type")
+        x_min = statistics_distribution.ppf(0.0000001, *params)
+        x_max = statistics_distribution.ppf(0.9999999, *params)
+        probability_list = statistics_distribution.cdf(np.arange(x_min, x_max, (x_max - x_min) / len(objects)), *params)
+        return SelectionModel(DistributionType.uniform, probability_list, objects, param=params)
 
     @staticmethod
     def new_fixed(objects, percentages):
@@ -248,7 +290,9 @@ class SelectionModel:
             raise Exception("the parameters need to have the same type: either dict or list")
         if type(objects) is list:
             # not sure about the data type here
-            probability_list = SelectionModel._produce_probability_distribution([float(p) for p in percentages])
+            probability_list = [float(p) for p in percentages]
+            for i in range(1, len(probability_list)):
+                probability_list[i] +=  probability_list[i-1]
             return SelectionModel(DistributionType.fixed, probability_list, objects)
         elif type(objects) is dict:
             object_list = []
@@ -256,57 +300,72 @@ class SelectionModel:
             for key in objects.keys():
                 object_list.append(objects[key])
                 probability_list.append(float(percentages[key]))
-            probability_list = SelectionModel._produce_probability_distribution(probability_list)
+            for i in range(1, len(probability_list)):
+                probability_list[i] += probability_list[i - 1]
             return SelectionModel(DistributionType.fixed, probability_list, object_list)
 
     @staticmethod
-    def new_uniform(objects):
-        # random variables
-        rv = [random.uniform(0, 1) for _ in range(len(objects))]
-        probability_list = SelectionModel._produce_probability_distribution(rv)
+    def new_uniform(objects, n_samples=100000):
+        x_min = stats.uniform.ppf(0.0000001)
+        x_max = stats.uniform.ppf(0.9999999)
+        probability_list = stats.uniform.cdf(np.arange(x_min, x_max, (x_max - x_min) / len(objects)))
+        #rv_list = [random.uniform(0, 1) for _ in range(n_samples)]
+        #probability_list = SelectionModel._produce_probability_distribution(rv_list, len(objects))
         return SelectionModel(DistributionType.uniform, probability_list, objects, param=[0, 1])
 
     @staticmethod
-    def new_gauss(objects, mu=1, sigma=0.2):
-        # random variables
-        rv = [random.gauss(mu, sigma) for _ in range(len(objects))]
-        probability_list = SelectionModel._produce_probability_distribution(rv)
+    def new_gauss(objects, mu=1, sigma=0.2, n_samples=100000):
+        x_min = stats.norm.ppf(0.0000001)
+        x_max = stats.norm.ppf(0.9999999)
+        probability_list = stats.norm.cdf(np.arange(x_min, x_max, (x_max - x_min) / len(objects)))
+        #rv_list = [random.gauss(mu, sigma) for _ in range(n_samples)]
+        #probability_list = SelectionModel._produce_probability_distribution(rv_list, len(objects))
         return SelectionModel(DistributionType.gaussian, probability_list, objects, param=[mu, sigma])
 
     @staticmethod
-    def new_exponential(objects, lambd=1):
-        # random variables
-        rv = [random.expovariate(lambd) for _ in range(len(objects))]
-        probability_list = SelectionModel._produce_probability_distribution(rv)
+    def new_exponential(objects, lambd=1, n_samples=100000):
+        x_min = stats.expon.ppf(0.0000001)
+        x_max = stats.expon.ppf(0.9999999)
+        probability_list = stats.expon.cdf(np.arange(x_min, x_max, (x_max - x_min) / len(objects)))
+        #rv_list = [random.expovariate(lambd) for _ in range(n_samples)]
+        #probability_list = SelectionModel._produce_probability_distribution(rv_list, len(objects))
         return SelectionModel(DistributionType.exponential, probability_list, objects, param=[lambd])
 
     @staticmethod
-    def new_longnormal(objects, mu=0, sigma=1):
-        # random variables
-        rv = [random.lognormvariate(mu, sigma) for _ in range(len(objects))]
-        probability_list = SelectionModel._produce_probability_distribution(rv)
-        return SelectionModel(DistributionType.longnormal, probability_list, objects, param=[mu, sigma])
+    def new_longnormal(objects, shape=1.0, n_samples=100000):
+        x_min = stats.lognorm.ppf(0.0000001, shape)
+        x_max = stats.lognorm.ppf(0.9999999, shape)
+        probability_list = stats.lognorm.cdf(np.arange(x_min, x_max, (x_max - x_min) / len(objects)), shape)
+        #rv_list = [random.lognormvariate(mu, sigma) for _ in range(n_samples)]
+        #probability_list = SelectionModel._produce_probability_distribution(rv_list, len(objects))
+        return SelectionModel(DistributionType.longnormal, probability_list, objects, param=[shape])
 
     @staticmethod
-    def new_beta(objects, alpha=2, beta=5):
-        # random variables
-        rv = [random.betavariate(alpha, beta) for _ in range(len(objects))]
-        probability_list = SelectionModel._produce_probability_distribution(rv)
+    def new_beta(objects, alpha=2, beta=1, n_samples=100000):
+        x_min = stats.beta.ppf(0.0000001, alpha, beta)
+        x_max = stats.beta.ppf(0.9999999, alpha, beta)
+        probability_list = stats.beta.cdf(np.arange(x_min, x_max, (x_max - x_min) / 1000), alpha, beta)
+        #rv_list = [random.betavariate(alpha, beta) for _ in range(n_samples)]
+        #probability_list = SelectionModel._produce_probability_distribution(rv_list, len(objects))
         return SelectionModel(DistributionType.beta, probability_list, objects, param=[alpha, beta])
 
     @staticmethod
-    def new_gamma(objects, alpha=9., beta=.5):
-        # random variables
-        rv = [random.gammavariate(alpha, beta) for _ in range(len(objects))]
-        probability_list = SelectionModel._produce_probability_distribution(rv)
-        return SelectionModel(DistributionType.gamma, probability_list, objects, param=[alpha, beta])
+    def new_gamma(objects, shape=2, n_samples=100000):
+        x_min = stats.gamma.ppf(0.0000001, shape)
+        x_max = stats.gamma.ppf(0.9999999, shape)
+        probability_list = stats.gamma.cdf(np.arange(x_min, x_max, (x_max - x_min) / 1000), shape)
+        #rv_list = [random.gammavariate(alpha, beta) for _ in range(n_samples)]
+        #probability_list = SelectionModel._produce_probability_distribution(rv_list, len(objects))
+        return SelectionModel(DistributionType.gamma, probability_list, objects, param=[shape])
 
     @staticmethod
-    def new_pareto(objects, alpha=3):
-        # random variables
-        rv = [random.paretovariate(alpha) for _ in range(len(objects))]
-        probability_list = SelectionModel._produce_probability_distribution(rv)
-        return SelectionModel(DistributionType.pareto, probability_list, objects, param=[alpha])
+    def new_pareto(objects, shape=100, n_samples=100000):
+        x_min = stats.pareto.ppf(0.0000001, shape)
+        x_max = stats.pareto.ppf(0.9999999, shape)
+        probability_list = stats.pareto.cdf(np.arange(x_min, x_max, (x_max - x_min) / 1000), shape)
+        #rv_list = [random.paretovariate(alpha) for _ in range(n_samples)]
+        #probability_list = SelectionModel._produce_probability_distribution(rv_list, len(objects))
+        return SelectionModel(DistributionType.pareto, probability_list, objects, param=[shape])
 
     def __repr__(self):
         paremeter_str = "_".join([str(s) for s in self.kwargs['param']])
@@ -392,8 +451,14 @@ class RoxieApplication:
             endpoint = "{}/WsEcl/json/query/roxie/{}".format(endpoint, self.query_name)
         return self.query_name, endpoint, self.query_key, self.selection_model.select()
 
+    def _keys_md5(self):
+        m = hashlib.md5()
+        for key in self.selection_model.objects:
+            m.update(key.encode())
+        return m.hexdigest()
+
     def __repr__(self):
-        return "".join([str(self.__class__.__name__), "[type=", self.query_name, str(len(self.endpoint_list)), repr(self.selection_model)])
+        return "".join([str(self.__class__.__name__), "[type=", self.query_name, str(len(self.endpoint_list)), repr(self.selection_model.distribution), self._keys_md5()])
 
     def __eq__(self, other):
         return self.__repr__() == other.__repr__()

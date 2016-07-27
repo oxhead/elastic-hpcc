@@ -2,6 +2,8 @@ import os
 import copy
 import pprint
 import pickle
+import json
+import hashlib
 
 from elastic import init
 from elastic.benchmark.config import BaseConfig
@@ -51,11 +53,14 @@ class WorkloadTimelineManager:
         if not os.path.exists(self.store_dir):
             os.makedirs(self.store_dir)
 
-    def _generate_cache_path(self, workload):
-        return os.path.join(self.store_dir, str(hash(workload)))
+    def _generate_cache_path(self, workload_config):
+        #print('----------------')
+        #print(repr(workload))
+        md5_key = hashlib.md5(json.dumps(workload_config.config, sort_keys=True).encode()).hexdigest()
+        return os.path.join(self.store_dir, md5_key)
 
-    def cache(self, workload, update=False):
-        cache_path = self._generate_cache_path(workload)
+    def cache(self, workload_config, workload, update=False):
+        cache_path = self._generate_cache_path(workload_config)
         if (not update) and (os.path.exists(cache_path)):
             print("loading workload timeline from {}".format(cache_path))
             return WorkloadTimelineManager.load_timeline(cache_path)
@@ -117,15 +122,23 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
 
         if per_setting.has_key('experiment.application'):
             application_db = workload_config.lookup_config('workload.applications')
-            app_name = per_setting['experiment.application']
-            workload_config.set_config('workload.applications', {app_name: application_db[app_name]})
+            app_names = per_setting['experiment.applications']
+            app_config = {}
+            for app_name in app_names:
+                app_config[app_name] = application_db[app_name]
+            workload_config.set_config('workload.applications', app_config)
 
+        #print(json.dumps(workload_config.config, indent=4))
+
+        workload = Workload.from_config(workload_config)
         workload_timeline_dir = os.path.join(experiment_dir, '.workload_timeline') if experiment_dir else '.workload_timeline'
         workload_timeline_manager = WorkloadTimelineManager(store_dir=workload_timeline_dir)
-        workload_timeline = workload_timeline_manager.cache(Workload.from_config(workload_config), update=not timeline_reuse)
+        workload_timeline = workload_timeline_manager.cache(workload_config, workload, update=not timeline_reuse)
         #for k, vs in workload_timeline.timeline.items():
         #    for v in vs:
-        #            print(v.wid, v.key)
+        #        print(v.wid, v.query_name, v.key)
+        #print(workload.application_selection.distribution, workload.application_selection.probability_list)
+        analyze_timeline(workload_timeline.timeline)
         experiment_id = per_setting['experiment.id']
         hpcc_cluster = HPCCCluster.parse_config(per_setting['cluster.target'])
         benchmark_config = BenchmarkConfig.parse_file(per_setting['cluster.benchmark'])
@@ -135,3 +148,11 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         output_dir = per_setting['experiment.output_dir']
         experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wait_time=wait_time)
         yield experiment
+
+def analyze_timeline(timeline):
+    from collections import defaultdict
+    ds = defaultdict(lambda: 0)
+    for k, vs in timeline.items():
+        for v in vs:
+            ds[v.query_name] += 1
+    print(json.dumps(ds, indent=4))

@@ -132,6 +132,8 @@ def service(ctx, action, component):
             #if action == 'start':
             #    RemoteCommand(ctx.obj['topology']['esp'][0][0], "sudo service hpcc-init {}".format(action), silent=False, check=True).start()
             with parallel.CommandAgent() as agent:
+                agent.submit_remote_commands(ctx.obj['host_list'], "sudo service dafilesrv {}".format(action), check=False, silent=True, capture=True)
+            with parallel.CommandAgent() as agent:
                     agent.submit_remote_commands(ctx.obj['host_list'], "sudo service hpcc-init {}".format(action), check=False, silent=True, capture=True)
             if action == 'stop':
                 with parallel.CommandAgent() as agent:

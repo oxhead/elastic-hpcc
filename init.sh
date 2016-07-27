@@ -17,6 +17,8 @@ action_prepare ()
     pip install requests 2>&1 > /dev/null
     pip install netifaces 2>&1 > /dev/null
     pip install pyyaml 2>&1 > /dev/null
+    pip install numpy 2>&1 > /dev/null
+    pip install scipy 2>&1 > /dev/null
     pip install --editable ${DIR}/sbin 2>&1 > /dev/null
     deactivate
 }
