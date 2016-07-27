@@ -1,5 +1,6 @@
 import getpass
 import os
+import platform
 
 import click
 import executor
@@ -68,7 +69,12 @@ def fix_ssh(ctx, user):
         sshd_config = "/etc/ssh/sshd_config"
         RemoteCommand(host, "sudo cp {} {}.bak".format(sshd_config, sshd_config), ignore_known_hosts=True).start()
         RemoteCommand(host, 'sudo sed -i "s/^AllowUsers.*/AllowUsers root {}/" {}'.format(" ".join(user_list), sshd_config), ignore_known_hosts=True).start()
-        RemoteCommand(host, 'sudo service ssh reload', ignore_known_hosts=True).start()
+        # workaround to support Ubuntu and
+        linux_distro = platform.linux_distribution()[0]
+        if 'centos' in linux_distro.lower():
+            RemoteCommand(host, 'sudo service sshd reload', ignore_known_hosts=True).start()
+        else:
+            RemoteCommand(host, 'sudo service ssh reload', ignore_known_hosts=True).start()
 
 @cli.command()
 @click.option('--user', default=lambda: os.getenv('USER'))
@@ -81,6 +87,20 @@ def fix_sudo(ctx, user):
     for host in ctx.obj['host_list']:
         sudo_config = "/etc/sudoers"
         RemoteCommand(host, 'sudo sed -i "s/^{}.*/{} ALL=(ALL) NOPASSWD: ALL/" {}'.format(user, user, sudo_config), ignore_known_hosts=True).start()
+
+
+@cli.command()
+@click.option('--user', default=lambda: os.getenv('USER'))
+@click.pass_context
+def fix_sudotty(ctx, user):
+    """This change the permission in sudo vim /etc/sudoers
+
+    This makes sure the user has all the permissions, e.g. switch to other user.
+    """
+    for host in ctx.obj['host_list']:
+        sudo_config = "/etc/sudoers"
+        execute('ssh -t {} sudo sed -i "s/^Defaults.*requiretty.*/#Defaults\ \ \ \ requiretty/" {}'.format(host, sudo_config))
+
 
 @cli.command()
 @click.pass_context

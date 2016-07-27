@@ -103,6 +103,7 @@ def deploy(ctx):
 @cli.command()
 @click.pass_context
 def deploy_config(ctx):
+    execute('cp {} ~/elastic-hpcc/conf/benchmark.yaml'.format(ctx.obj['config']))
     deploy_set = set()
     if not network_util.is_local_ip(ctx.obj['_config'].get_controller()):
         deploy_set.add(ctx.obj['_config'].get_controller())
