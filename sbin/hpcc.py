@@ -3,6 +3,7 @@ import os
 import pickle
 from collections import defaultdict
 import shlex
+import platform
 
 import click
 import executor
@@ -47,7 +48,11 @@ def package(ctx, action, deb):
         # restrict the number of concurrency to avoid blocked by the APT system durning installation
         with parallel.CommandAgent(show_result=False, concurrency=4) as agent:
             print(ctx.obj['host_list'])
-            agent.submit_remote_commands(ctx.obj['host_list'], "sudo dpkg -i {}; sudo apt-get install -f -y".format(tmp_path), silent=True)
+            # workaround
+            if 'centos' in platform.linux_distribution()[0].lower():
+                agent.submit_remote_commands(ctx.obj['host_list'], "sudo yum remove -y hpccsystems-platform; sudo yum install -y {}".format(tmp_path), silent=True)
+            else:
+                agent.submit_remote_commands(ctx.obj['host_list'], "sudo dpkg -i {}; sudo apt-get install -f -y".format(tmp_path), silent=True)
         '''
         for host in ctx.obj['host_list']:
             click.echo('{}: install package {}'.format(host, tmp_path))

@@ -1,5 +1,5 @@
 controller:
-    host: 192.168.1.237
+    host: 10.25.2.156
     num_drivers: 1
     commander:
         port: 9999
@@ -10,10 +10,6 @@ controller:
     manager:
         port: 9996
 driver:
-    num_workers: 100
+    num_workers: 48
     hosts:
-        - 192.168.1.237
-hpcc:
-    esp:
-        host: 152.46.16.135
-        port: 8002
+        - 10.25.2.156

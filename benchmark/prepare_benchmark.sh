@@ -5,7 +5,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # 1) Upload data
 #thor run --ecl ${DIR}/MyBenchmark/GenData.ecl --wait_until_complete
 #thor run --ecl ${DIR}/MyBenchmark/GenData_firstname.ecl --wait_until_complete
-thor run --ecl ${DIR}/MyBenchmark/GenData_random.ecl --wait_until_complete
+#thor run --ecl ${DIR}/MyBenchmark/GenData_random.ecl --wait_until_complete
 
 # 2) Publish the query
 roxie publish sequential_search_firstname --ecl ${DIR}/MyBenchmark/SequentialSearch_FirstName.ecl

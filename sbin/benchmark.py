@@ -55,14 +55,18 @@ def download_dataset(ctx, dataset):
 
 
 @cli.command()
-@click.argument('action', type=click.Choice(['start', 'stop', 'status']))
+@click.argument('action', type=click.Choice(['start', 'stop', 'restart', 'status']))
 @click.pass_context
 def service(ctx, action):
+
     benchmark_service = BenchmarkService.new(ctx.obj['config'])
     if action == "start":
         benchmark_service.start()
     elif action == "stop":
         benchmark_service.stop()
+    elif action == "restart":
+        benchmark_service.stop()
+        benchmark_service.start()
     elif action == "status":
         print(benchmark_service.status())
 
@@ -79,7 +83,7 @@ def install_package(ctx, node):
             deploy_set.add(driver_node)
     with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
         for host in deploy_set:
-            agent.submit_remote_command(host, "cd ~/elastic-hpcc; source init.sh", silent=True)
+            agent.submit_remote_command(host, "cd ~/elastic-hpcc; source install.sh", silent=True)
 
 
 @cli.command()
@@ -94,7 +98,7 @@ def deploy(ctx):
     with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
         for host in deploy_set:
              # TODO: a better way? Should not use fixed directory
-             agent.submit_command('rsync -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" -avz --exclude elastic-hpcc/HPCC-Platform --exclude elastic-hpcc/benchmark --exclude elastic-hpcc/results --exclude elastic-hpcc/.git --exclude elastic-hpcc/.venv ~/elastic-hpcc {}:~/'.format(host))
+             agent.submit_command('rsync -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" -avz --exclude elastic-hpcc/HPCC-Platform --exclude elastic-hpcc/benchmark --exclude elastic-hpcc/results --exclude elastic-hpcc/logs --exclude elastic-hpcc/.git --exclude elastic-hpcc/.venv ~/elastic-hpcc {}:~/'.format(host))
 
     with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
         for host in deploy_set:

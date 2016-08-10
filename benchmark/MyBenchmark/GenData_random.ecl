@@ -8,8 +8,8 @@ IMPORT Std;
 // 1,000,000 Person (parent) records and all their associated Accounts (children)
 // by starting with 1000 first names and 1000 last names
 
-P_Mult1       := 1000; //2000
-P_Mult2       := 1000;
+P_Mult1       := 2000; //2000
+P_Mult2       := 2000;
 TotalParents  := P_Mult1 * P_Mult2;
 //TotalChildren := 500000; //1000000
 

@@ -20,6 +20,9 @@ class BenchmarkService:
         self.commander = BenchmarkCommander(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
 
+    def export_config(self, output_path):
+        self.config.to_file(output_path)
+
     def deploy_config(self):
         self.logger.info("deploy benchmark config")
         # TODO: lazy implementaiton, needs to improve here
@@ -36,29 +39,42 @@ class BenchmarkService:
             for host in deploy_set:
                 agent.submit_command('scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {} {}:{}'.format(tmp_config_path, host, config_path), silent=True)
 
+    def restart(self):
+        self.stop()
+        self.start()
+
     def start(self):
         self.logger.info("start benchmark service")
         self.deploy_config()
         self.logger.info("sync time across servers")
         # https://svn.unity.ncsu.edu/svn/cls/tags/realmconfig/4.1.19/default-modules/ntp2.py
-        #ntp_servers = ['152.1.227.236', '152.1.227.237', '152.1.227.238']
-        #benchmark_nodes = [self.config.get_controller()] + self.config.get_drivers()
-        #with parallel.CommandAgent(concurrency=len(benchmark_nodes), show_result=False) as agent:
-        #    agent.submit_remote_commands(benchmark_nodes, 'sudo ntpdate -u {}'.format(random.choice(ntp_servers)), silent=True)
+        ntp_servers = ['152.1.227.236', '152.1.227.237', '152.1.227.238']
+        benchmark_nodes = [self.config.get_controller()] + self.config.get_drivers()
+        with parallel.CommandAgent(concurrency=len(benchmark_nodes), show_result=False) as agent:
+            agent.submit_remote_commands(benchmark_nodes, 'sudo ntpdate -u {}'.format(random.choice(ntp_servers)), silent=True)
 
         with parallel.CommandAgent(show_result=True) as agent:
             # TODO: a better way? Should not use fixed directory
             self.logger.info("start the controller node at {}".format(self.config.get_controller()))
-            agent.submit_remote_command(self.config.get_controller(), 'bash ~/elastic-hpcc/script/start_controller.sh', silent=True)
+            agent.submit_remote_command(self.config.get_controller(), 'cd ~/elastic-hpcc; source init.sh; mycontroller start', silent=True)
 
             for driver_node in self.config.get_drivers():
                 self.logger.info("start the driver node at {}".format(driver_node))
-                agent.submit_remote_command(driver_node, 'bash ~/elastic-hpcc/script/start_driver.sh', silent=True)
+                agent.submit_remote_command(driver_node, 'cd ~/elastic-hpcc; source init.sh; mydriver start', silent=True)
 
     def stop(self):
-        self.commander.stop()
-        with parallel.CommandAgent(concurrency=len(self.config.get_drivers())) as agent:
-            agent.submit_remote_commands(self.config.get_drivers(), "sudo pkill -9 python", check=False)
+        with parallel.CommandAgent(show_result=True) as agent:
+            # TODO: a better way? Should not use fixed directory
+            for driver_node in self.config.get_drivers():
+                self.logger.info("stop the driver node at {}".format(driver_node))
+                agent.submit_remote_command(driver_node, 'cd ~/elastic-hpcc; source init.sh; mydriver stop', silent=True)
+            self.logger.info("stop the controller node at {}".format(self.config.get_controller()))
+            agent.submit_remote_command(self.config.get_controller(),
+                                        'cd ~/elastic-hpcc; source init.sh; mycontroller stop', silent=True)
+
+        #self.commander.stop()
+        #with parallel.CommandAgent(concurrency=len(self.config.get_drivers())) as agent:
+        #    agent.submit_remote_commands(self.config.get_drivers(), "sudo pkill -9 python", check=False)
 
     def status(self):
         self.logger.info("check status of benchmark service")

@@ -27,39 +27,18 @@ def pretty_print_POST(req):
     ))
 
 
-def query_originalperson():
-    headers = {
-        "Content-Type": "application/json"
-    }
-
-    url = "http://152.46.16.135:8002/WsEcl/json/query/roxie/fetchpeoplebyzipservice"
-    payload = {
-        "fetchpeoplebyzipservice": {
-            "zipvalue": "27616"
-        }
-    }
-
-    req = requests.Request('POST', url, headers=headers, data=json.dumps(payload))
-    prepared = req.prepare()
-
-    #pretty_print_POST(prepared)
-
-    session = requests.Session()
-    r = session.send(prepared)
-    #print(r.text)
-
-
 def new_session():
     return requests.Session()
 
 
-def execute_workload_item(session, workload_item, timeoue=30):
+def execute_workload_item(session, workload_item, timeout=30):
     try:
         return run_query(session, workload_item.query_name, workload_item.endpoint, workload_item.query_key, workload_item.key, timeout)
     except Exception as e:
-        print(e)
-        pass
-    return False, 0
+        logger.exception(e)
+        #print(e)
+        return False, 0, -1, str(e)
+
 
 
 def run_query(session, query_name, endpoint, query_key, key, timeout):
@@ -74,11 +53,12 @@ def run_query(session, query_name, endpoint, query_key, key, timeout):
     #req = requests.Request('POST', endpoint, headers=headers, data=json.dumps(payload))
     #prepared = req.prepare()
     #r = session.send(prepared, timeout=10)
-    r = requests.post(endpoint, headers=headers, data=json.dumps(payload), timeout=timeout)
+    r = session.post(endpoint, headers=headers, data=json.dumps(payload), timeout=timeout)
+    #r = requests.post(endpoint, headers=headers, data=json.dumps(payload), timeout=timeout)
     #print("{} {} {} {}".format(query_name, endpoint, query_key, key))
     print("{} {} {} {} {} {}".format(query_name, endpoint, query_key, key, r.status_code, len(r.text)))
     logger.info("{} {} {} {} {} {}".format(query_name, endpoint, query_key, key, r.status_code, len(r.text)))
     logger.debug(r.status_code)
     logger.debug("return length: {}".format(len(r.text)))
     #logger.info(r.text)
-    return r.status_code == 200, len(r.text)
+    return r.status_code == 200, len(r.text), r.status_code, ""

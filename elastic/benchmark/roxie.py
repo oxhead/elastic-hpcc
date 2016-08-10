@@ -29,6 +29,8 @@ class RoxieBenchmark(base.Benchmark):
             for node in self.cluster.get_nodes():
                 roxie.reset_metrics(node)
                 agent.submit(node.get_ip(), roxie.reset_metrics, node)
+        self.benchmark_service.stop()
+        self.benchmark_service.start()
 
     def post_run(self):
         self.logger.info("Post-benchmark")
@@ -43,9 +45,22 @@ class RoxieBenchmark(base.Benchmark):
 
         self.logger.info("exporting detailed statistics")
         statistics = self.benchmark_service.get_workload_statistics(self.workload_id)
-        statistics_output_file = os.path.join(self.result_output_dir, "statistics.json")
-        with open(statistics_output_file, 'w') as f:
+        statistics_json_output_file = os.path.join(self.result_output_dir, "statistics.json")
+        with open(statistics_json_output_file, 'w') as f:
             json.dump(statistics, f, indent=4, sort_keys=True)
+        statistics_csv_output_file = os.path.join(self.result_output_dir, "statistics.csv")
+        with open(statistics_csv_output_file, 'w') as f:
+            f.write("wid,success,status,size,queueTimestamp,startTimestamp,finishTimestamp,queryTime,totalTime\n")
+            for query_id, query_statistics  in statistics.items():
+                f.write("{},{},{},{},{},{},{},{},{}\n".format(
+                    query_id,
+                    1 if query_statistics['success'] else 0, query_statistics['status'], query_statistics['size'],
+                    query_statistics['queueTimestamp'],
+                    query_statistics['startTimestamp'],
+                    query_statistics['finishTimestamp'],
+                    float(query_statistics['finishTimestamp']) - float(query_statistics['startTimestamp']),
+                    float(query_statistics['finishTimestamp']) - float(query_statistics['queueTimestamp']))
+                )
 
         self.logger.info("exporting query completion timeline")
         completion_timeline = self.benchmark_service.get_workload_timeline_completion(self.workload_id)
@@ -58,6 +73,13 @@ class RoxieBenchmark(base.Benchmark):
         failure_timeline_file = os.path.join(self.result_output_dir, "failure_timeline.json")
         with open(failure_timeline_file, 'w') as f:
             json.dump(failure_timeline, f, indent=4, sort_keys=True)
+
+        self.logger.info("exporting benchmark config")
+        benchmark_config_output = os.path.join(self.config_output_dir, "benchmark.yaml")
+        self.benchmark_service.export_config(benchmark_config_output)
+
+        self.logger.info("stopping benchmark service")
+        self.benchmark_service.stop()
 
         self.logger.info("exporting timeline recording")
         workload_output_file = os.path.join(self.config_output_dir, "workload_timline.pickle")

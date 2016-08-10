@@ -443,11 +443,13 @@ class BenchmarkDriver(BenchmarkNode):
         self.receiver.connect("tcp://{}:{}".format(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_JOB_QUEUE_PORT)))
 
         while True:
-            if self.worker_queue.qsize() > self.worker_pool.size * 100:
+            if self.worker_queue.qsize() > self.worker_pool.size * 10:
                 self.logger.info("@ too much job, yield to others")
                 gevent.sleep(1)
             self.logger.info("waiting for message")
             workload_item = self.receiver.recv_pyobj()
+            # dirty hack
+            workload_item.queue_timestamp = time.time()
             self.worker_queue.put(workload_item)
 
     def worker(self, worker_id):
@@ -456,10 +458,10 @@ class BenchmarkDriver(BenchmarkNode):
         while True:
             worker_item = self.worker_queue.get()
             self.logger.info("worker {} is processing roxie query {}".format(worker_id, worker_item.wid))
-            start_time = time.time()
-            success, output_size = query.execute_workload_item(session, worker_item, timeout=self.query_timeout)
-            elapsed_time = time.time() - start_time
-            reporter_procotol.report(worker_item.wid, start_time, elapsed_time, success, output_size)
+            start_timestamp = time.time()
+            success, output_size, status_code, exception_description = query.execute_workload_item(session, worker_item, timeout=self.query_timeout)
+            finish_timestamp = time.time()
+            reporter_procotol.report(worker_item.wid, worker_item.queue_timestamp, start_timestamp, finish_timestamp, success, output_size, status_code, exception_description)
 
 
 class BenchmarkReporterProtocol():
@@ -468,17 +470,20 @@ class BenchmarkReporterProtocol():
         self.result_sender = result_sender
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
 
-    def report(self, worker_item, start_time, elaspsed_time, success, output_size):
+    def report(self, worker_item, queue_timestamp, start_timestemp, finish_timestamp, success, output_size, status_code, exception_description):
         statics = {
             "item": worker_item,
-            "startTime": start_time,
-            "elapsedTime": elaspsed_time,
+            "queueTimestamp": queue_timestamp,
+            "startTimestamp": start_timestemp,
+            "finishTimestamp": finish_timestamp,
             "success": success,
-            "size": output_size
+            "size": output_size,
+            "status": status_code,
+            "exception": exception_description
         }
         protocol = BenchmarkProtocol(SendProtocolHeader.report_done, statics)
         self.result_sender.send_pyobj(protocol)
-        self.logger.info("report completion: wid=%s, elapsedTime=%s", worker_item, elaspsed_time)
+        self.logger.info("report completion: wid=%s, runningTime=%s, totalTime=%s", worker_item, (finish_timestamp-start_timestemp), (finish_timestamp-queue_timestamp))
 
 
 class BenchmarkSenderProtocol:

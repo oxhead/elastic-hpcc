@@ -91,6 +91,15 @@ class Experiment:
         self.output_dir = output_dir
         self.wait_time = wait_time
 
+    def pre_run(self):
+        self.hpcc_service.stop()
+        self.hpcc_service.clear_log()  # to get the right counter
+        self.hpcc_service.clean_system()  # to make the same base
+        self.hpcc_service.start()
+
+    def post_run(self):
+        pass
+
     def run(self):
         print("Experiment:", self.experiment_id)
         print("Nodes:", self.hpcc_cluster.get_roxie_cluster().get_num_nodes())
@@ -99,12 +108,11 @@ class Experiment:
             print("The output directory exists")
             return
         try:
-            self.hpcc_service.stop()
-            self.hpcc_service.clear_log()  # to get the right counter
-            self.hpcc_service.start()
+            self.pre_run()
             bm = RoxieBenchmark(self.hpcc_cluster, self.benchmark_config, self.workload_timeline, output_dir=self.output_dir)
             time.sleep(self.wait_time)
             bm.run()
+            self.post_run()
         except Exception as e:
             print("Failed to run the experiment", e)
 
@@ -120,7 +128,7 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         workload_config = WorkloadConfig.parse_file(per_setting['experiment.workload_template'])
         workload_config.merge(per_setting)  # should be able to merge
 
-        if per_setting.has_key('experiment.application'):
+        if per_setting.has_key('experiment.applications'):
             application_db = workload_config.lookup_config('workload.applications')
             app_names = per_setting['experiment.applications']
             app_config = {}
@@ -128,7 +136,7 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
                 app_config[app_name] = application_db[app_name]
             workload_config.set_config('workload.applications', app_config)
 
-        #print(json.dumps(workload_config.config, indent=4))
+        print(json.dumps(workload_config.config, indent=4))
 
         workload = Workload.from_config(workload_config)
         workload_timeline_dir = os.path.join(experiment_dir, '.workload_timeline') if experiment_dir else '.workload_timeline'
@@ -142,6 +150,12 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         experiment_id = per_setting['experiment.id']
         hpcc_cluster = HPCCCluster.parse_config(per_setting['cluster.target'])
         benchmark_config = BenchmarkConfig.parse_file(per_setting['cluster.benchmark'])
+        #print("before", benchmark_config.config)
+        num_benchmark_clients = int(per_setting['experiment.benchmark_clients'])
+        num_benchmark_concurrency = int(per_setting['experiment.benchmark_concurrency'])
+        benchmark_config.set_config("driver.hosts", benchmark_config.lookup_config("driver.hosts")[:num_benchmark_clients])
+        benchmark_config.set_config("driver.num_workers", num_benchmark_concurrency)
+        #print("after", benchmark_config.config)
 
         if not per_setting.has_key('experiment.output_dir'):
             per_setting.set_config('experiment.output_dir', generate_default_output_dir(per_setting, hpcc_cluster, workload_config))

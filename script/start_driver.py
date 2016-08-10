@@ -1,3 +1,6 @@
+import logging
+import sys
+
 from elastic import init
 from elastic.benchmark.zeromqimpl import *
 
