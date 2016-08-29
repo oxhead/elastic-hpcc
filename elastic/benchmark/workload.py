@@ -30,6 +30,7 @@ class WorkloadConfig(config.BaseConfig):
         self.set_config('workload.type', added.lookup_config('workload.type', self['workload.type']))
         self.set_config('workload.num_queries', added.lookup_config('workload.num_queries', self['workload.num_queries']))
         self.set_config('workload.period', added.lookup_config('workload.period', self['workload.period']))
+        self.set_config('workload.dispatch_mode', added.lookup_config('workload.dispatch_mode', self['workload.dispatch_mode']))
         self.set_config('workload.applications', added.lookup_config('workload.applications', self['workload.applications']))
         self.set_config('workload.distribution', added.lookup_config('workload.distribution', self['workload.distribution']))
         self.set_config('workload.selection', added.lookup_config('workload.selection', self['workload.selection']))
@@ -117,12 +118,13 @@ class RoxieTargetDispatcher:
 
 class Workload:
 
-    def __init__(self, workload_type, workload_generator, application_selection, period=None):
+    def __init__(self, workload_type, workload_generator, application_selection, period=None, dispatch_mode='batch'):
         self.workload_type = workload_type
         self.workload_generator = workload_generator
         self.application_selection = application_selection
         self.period = period
         self.taken_count = 0
+        self.dispatch_mode = dispatch_mode
 
     def init(self):
         self.taken_count = 0
@@ -183,8 +185,9 @@ class Workload:
         workload_type = WorkloadType[workload_config.lookup_config('workload.type').lower()]
         num_queries = workload_config.lookup_config('workload.num_queries')
         period = workload_config.lookup_config("workload.period")
+        dispatch_mode = workload_config.lookup_config("workload.dispatch_mode")
         workload_generator = Workload.new_generator(workload_type, num_queries)
-        return Workload(workload_type, workload_generator, application_selection, period=period)
+        return Workload(workload_type, workload_generator, application_selection, period=period, dispatch_mode=dispatch_mode)
 
     # http://stackoverflow.com/questions/2909106/python-whats-a-correct-and-good-way-to-implement-hash
     def __repr__(self):
@@ -391,20 +394,37 @@ class WorkloadExecutionTimeline:
 
     @staticmethod
     def from_workload(workload):
+        logger = logging.getLogger('.'.join([__name__, WorkloadExecutionTimeline.__class__.__name__]))
         workload.init()
+        dispatch_mode = workload.dispatch_mode
         workload_timeline = {}
         current_time = 0
-        num_queries = workload.next()
-        while num_queries is not None:
-            workload_timeline[current_time] = []
-            for i in range(num_queries):
-                app = workload.application_selection.select()
-                wid = "{}-{}".format(current_time+1, i+1)
-                workload_item = WorkloadItem(wid, *app.next_query())
-                workload_timeline[current_time].append(workload_item)
+        logger.info('dispath: {}'.format(dispatch_mode))
+        if dispatch_mode == 'once':
+            current_time = 0
+            workload_timeline[current_time] = []  # just one time slot
             num_queries = workload.next()
-            current_time += 1
-        return WorkloadExecutionTimeline(workload.period, workload_timeline)
+            while num_queries is not None:
+                for i in range(num_queries):
+                    app = workload.application_selection.select()
+                    wid = "{}-{}".format(current_time + 1, len(workload_timeline[current_time]) + 1)
+                    workload_item = WorkloadItem(wid, *app.next_query())
+                    workload_timeline[current_time].append(workload_item)
+                num_queries = workload.next()
+            return WorkloadExecutionTimeline(1, workload_timeline)
+        else:
+            num_queries = workload.next()
+            while num_queries is not None:
+                if current_time not in workload_timeline:
+                    workload_timeline[current_time] = []
+                for i in range(num_queries):
+                    app = workload.application_selection.select()
+                    wid = "{}-{}".format(current_time+1, i+1)
+                    workload_item = WorkloadItem(wid, *app.next_query())
+                    workload_timeline[current_time].append(workload_item)
+                num_queries = workload.next()
+                current_time += 1
+            return WorkloadExecutionTimeline(workload.period, workload_timeline)
 
     @staticmethod
     def from_timeline(timeline, workload):

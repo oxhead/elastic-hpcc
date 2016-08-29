@@ -1,3 +1,5 @@
+import random
+
 from elastic.benchmark import query
 from elastic.benchmark import workload
 
@@ -7,7 +9,7 @@ import gevent.queue
 from gevent.lock import Semaphore
 
 
-num_workers = 1
+num_workers = 256
 worker_pool = gevent.pool.Pool(num_workers)
 worker_queue = gevent.queue.Queue()
 mylock = Semaphore()
@@ -32,9 +34,11 @@ def run():
     index = 0
     query_name = "sequential_search_firstname"
     query_key = 'firstname'
-    key = 'MARY'
+    key_list = open('/home/chsu6/elastic-hpcc/benchmark/dataset/firstname_list_2000.txt', 'r').readlines()
+    #key = 'MARY'
     print('total queries={}'.format(num_queries))
     for i in range(num_queries):
+        key = key_list[random.randint(0, len(key_list)-1)].strip()
         workload_item = workload.WorkloadItem(query_key, query_name, endpoints[index % len(endpoints)], query_key, key)
         worker_queue.put(workload_item)
         index += 1

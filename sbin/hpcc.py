@@ -10,9 +10,10 @@ import executor
 from executor import execute
 from executor.ssh.client import RemoteCommand
 
+from elastic.hpcc import roxie as roxie_tool
+
 from common import CaptureOutput
 import parallel
-
 from cli import cli
 
 
@@ -302,3 +303,11 @@ def gen_config(ctx, output, thor, roxie, support, num_replica, channel_mode, att
     cmd = "{}/sbin/envgen -env {} -ipfile {} -supportnodes {} -thornodes {} -roxienodes {} -slavesPerNode {} {}".format(get_system_dir(ctx), output, ctx.obj['hosts'], support, thor, roxie, 1, customized_attr_list)
     print(cmd)
     execute(cmd)
+
+
+@cli.command()
+@click.option('--data_dir', default="/var/lib/HPCCSystems/hpcc-data/roxie")
+@click.pass_context
+def restore_data_placement(ctx, data_dir):
+    click.echo('restoring data placement')
+    roxie_tool.restore_data_placement(ctx.obj['host_list'], data_dir)

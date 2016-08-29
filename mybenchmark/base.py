@@ -10,6 +10,8 @@ from elastic.benchmark.config import BaseConfig
 from elastic.benchmark.roxie import *
 from elastic.benchmark.zeromqimpl import *
 from elastic.benchmark.workload import Workload, WorkloadConfig, WorkloadExecutionTimeline
+from elastic.hpcc import placement
+from elastic.hpcc import roxie
 from elastic.hpcc.service import HPCCService
 
 from elastic.hpcc.base import *
@@ -82,23 +84,41 @@ class ExperimentConfig(BaseConfig):
 
 
 class Experiment:
-    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wait_time=60):
+    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, dp=None, wait_time=60):
         self.experiment_id = experiment_id
         self.benchmark_config = benchmark_config
         self.hpcc_cluster = hpcc_cluster
         self.hpcc_service = HPCCService(self.hpcc_cluster)
         self.workload_timeline = workload_timeline
         self.output_dir = output_dir
+        self.dp = dp
         self.wait_time = wait_time
 
     def pre_run(self):
         self.hpcc_service.stop()
         self.hpcc_service.clear_log()  # to get the right counter
         self.hpcc_service.clean_system()  # to make the same base
+        if self.dp is not None:
+            roxie.switch_data_placement(self.dp)
         self.hpcc_service.start()
 
     def post_run(self):
         pass
+
+    def check_successful(self):
+        # hard coded here, or should do the check in RoxieBenchmark?
+        report_path = os.path.join(self.output_dir, "result", "report.json")
+        if not os.path.exists(report_path):
+            return False
+        else:
+            try:
+                with open(report_path, 'r') as f:
+                    report_json = json.load(f)
+                    if int(report_json['num_failed_jobs']) != 0:
+                        return False
+            except:
+                return False
+        return True
 
     def run(self):
         print("Experiment:", self.experiment_id)
@@ -113,6 +133,10 @@ class Experiment:
             time.sleep(self.wait_time)
             bm.run()
             self.post_run()
+            if not self.check_successful():
+                os.system("rm -rf {}".format(self.output_dir))
+                time.sleep(60)  # wait 60 seconds for recovering??
+                self.run()
         except Exception as e:
             print("Failed to run the experiment", e)
 
@@ -136,7 +160,7 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
                 app_config[app_name] = application_db[app_name]
             workload_config.set_config('workload.applications', app_config)
 
-        print(json.dumps(workload_config.config, indent=4))
+        #print(json.dumps(workload_config.config, indent=4))
 
         workload = Workload.from_config(workload_config)
         workload_timeline_dir = os.path.join(experiment_dir, '.workload_timeline') if experiment_dir else '.workload_timeline'
@@ -146,7 +170,7 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         #    for v in vs:
         #        print(v.wid, v.query_name, v.key)
         #print(workload.application_selection.distribution, workload.application_selection.probability_list)
-        analyze_timeline(workload_timeline.timeline)
+        #analyze_timeline(workload_timeline.timeline)
         experiment_id = per_setting['experiment.id']
         hpcc_cluster = HPCCCluster.parse_config(per_setting['cluster.target'])
         benchmark_config = BenchmarkConfig.parse_file(per_setting['cluster.benchmark'])
@@ -160,8 +184,22 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         if not per_setting.has_key('experiment.output_dir'):
             per_setting.set_config('experiment.output_dir', generate_default_output_dir(per_setting, hpcc_cluster, workload_config))
         output_dir = per_setting['experiment.output_dir']
-        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wait_time=wait_time)
+
+        dp_new = None
+        if per_setting.has_key('experiment.data_placement'):
+            data_placement_type, old_locations, access_profile = per_setting['experiment.data_placement']
+            dp_old = placement.DataPlacement.new(old_locations)
+            access_statistics = placement.PlacementTool.load_statistics(access_profile)
+            new_nodes = [n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes]
+            if data_placement_type == placement.DataPlacementType.coarse_partial:
+                dp_new = placement.CoarseGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
+            elif data_placement_type == placement.DataPlacementType.fine_partial:
+                dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
+
+        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, dp=dp_new, wait_time=wait_time)
+        experiment.workload_config = workload_config  # hack
         yield experiment
+
 
 def analyze_timeline(timeline):
     from collections import defaultdict

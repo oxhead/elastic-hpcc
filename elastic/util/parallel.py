@@ -68,20 +68,24 @@ class CommandAgent:
     def submit_command(self, cmd, *args, **kwargs):
         self.submit(hash(cmd), ExternalCommand(cmd, *args, **kwargs))
 
-    def submit_remote_command(self, host, cmd, *args, **kwargs):
+    def submit_remote_command(self, host, cmd, *args, cid=None, **kwargs):
         if 'strict_host_key_checking' not in kwargs:
             kwargs['strict_host_key_checking'] = False
         if 'ignore_known_hosts' not in kwargs:
             kwargs['ignore_known_hosts'] = True
-        if 'silent' not in kwargs:
-            kwargs['silent'] = True
-        if isinstance(host, str):
-            self.submit(hash(host + cmd), RemoteCommand(host, cmd, *args, **kwargs))
-        elif isinstance(host, base.Node):
-            self.submit(hash(host.get_ip() + cmd), RemoteCommand(host.get_ip(), cmd, *args, **kwargs))
-        else:
+        host_used = host if isinstance(host, str) else host.get_ip() if isinstance(host, base.Node) else None
+        if host_used is None:
             raise Exception("unknown host type: {}".format(type(host)))
 
-    def submit_remote_commands(self, nodes, cmd, *args, **kwargs):
-        for node in nodes:
-            self.submit_remote_command(node, cmd, *args, **kwargs)
+        if cid is None:
+            self.submit(hash(host_used + cmd), RemoteCommand(host_used, cmd, *args, **kwargs))
+        else:
+            self.submit(cid, RemoteCommand(host_used, cmd, *args, **kwargs))
+
+    def submit_remote_commands(self, nodes, cmd, *args, cids=None, **kwargs):
+        if cids is not None:
+            for node, cid in zip(nodes, cids):
+                self.submit_remote_command(node, cmd, *args,cid=cid, **kwargs)
+        else:
+            for node in nodes:
+                self.submit_remote_command(node, cmd, *args, **kwargs)

@@ -8,8 +8,8 @@ IMPORT Std;
 // 1,000,000 Person (parent) records and all their associated Accounts (children)
 // by starting with 1000 first names and 1000 last names
 
-P_Mult1       := 3000; //2000
-P_Mult2       := 3000;
+P_Mult1       := 5000; //2000
+P_Mult2       := 5000;
 TotalParents  := P_Mult1 * P_Mult2;
 //TotalChildren := 500000; //1000000
 
@@ -2886,66 +2886,66 @@ END;
 
 
 //write files to disk
-O1_1 := OUTPUT(PROJECT(base_people,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_PersonID',OVERWRITE);
+//O1_1 := OUTPUT(PROJECT(base_people,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_PersonID',OVERWRITE);
 O1_2 := OUTPUT(PROJECT(base_people,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_FirstName',OVERWRITE);
-O1_3 := OUTPUT(PROJECT(base_people,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_LastName',OVERWRITE);
-O1_4 := OUTPUT(PROJECT(base_people,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_State',OVERWRITE);
-O1_5 := OUTPUT(PROJECT(base_people,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_City',OVERWRITE);
-O1_6 := OUTPUT(PROJECT(base_people,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_Zip',OVERWRITE);
-P1 := SEQUENTIAL(O1_1,O1_2,O1_3,O1_4,O1_5,O1_6);
+//O1_3 := OUTPUT(PROJECT(base_people,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_LastName',OVERWRITE);
+//O1_4 := OUTPUT(PROJECT(base_people,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_State',OVERWRITE);
+//O1_5 := OUTPUT(PROJECT(base_people,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_City',OVERWRITE);
+//O1_6 := OUTPUT(PROJECT(base_people,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_Zip',OVERWRITE);
+P1 := SEQUENTIAL(O1_2);
 
-O2_1 := OUTPUT(PROJECT(base_people_sort_by_personid,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_PersonID',OVERWRITE);
+//O2_1 := OUTPUT(PROJECT(base_people_sort_by_personid,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_PersonID',OVERWRITE);
 O2_2 := OUTPUT(PROJECT(base_people_sort_by_firstname,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_FirstName',OVERWRITE);
-O2_3 := OUTPUT(PROJECT(base_people_sort_by_lastname,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_LastName',OVERWRITE);
-O2_4 := OUTPUT(PROJECT(base_people_sort_by_state,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_State',OVERWRITE);
-O2_5 := OUTPUT(PROJECT(base_people_sort_by_city,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_City',OVERWRITE);
-O2_6 := OUTPUT(PROJECT(base_people_sort_by_zip,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_Zip',OVERWRITE);
-P2 := SEQUENTIAL(O2_1,O2_2,O2_3,O2_4,O2_5,O2_6);
+//O2_3 := OUTPUT(PROJECT(base_people_sort_by_lastname,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_LastName',OVERWRITE);
+//O2_4 := OUTPUT(PROJECT(base_people_sort_by_state,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_State',OVERWRITE);
+//O2_5 := OUTPUT(PROJECT(base_people_sort_by_city,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_City',OVERWRITE);
+//O2_6 := OUTPUT(PROJECT(base_people_sort_by_zip,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_Zip',OVERWRITE);
+P2 := SEQUENTIAL(O2_2);
 
 
-D1_1 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_PersonID',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
+//D1_1 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_PersonID',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
 D1_2 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_FirstName',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
-D1_3 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_LastName',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
-D1_4 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_State',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
-D1_5 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_City',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
-D1_6 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_Zip',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
+//D1_3 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_LastName',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
+//D1_4 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_State',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
+//D1_5 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_City',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
+//D1_6 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Unsorted_People_Zip',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
 
-D2_1 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_PersonID',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
+//D2_1 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_PersonID',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
 D2_2 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_FirstName',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
-D2_3 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_LastName',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
-D2_4 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_State',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
-D2_5 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_City',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
-D2_6 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_Zip',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
+//D2_3 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_LastName',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
+//D2_4 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_State',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
+//D2_5 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_City',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
+//D2_6 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_Zip',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
 
-I1_1 := INDEX(D1_1,{PersonID,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Unsorted_People_PersonID');
+//I1_1 := INDEX(D1_1,{PersonID,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Unsorted_People_PersonID');
 I1_2 := INDEX(D1_2,{FirstName,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Unsorted_People_FirstName');
-I1_3 := INDEX(D1_3,{LastName,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Unsorted_People_LastName');
-I1_4 := INDEX(D1_4,{State,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Unsorted_People_State');
-I1_5 := INDEX(D1_5,{City,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Unsorted_People_City');
-I1_6 := INDEX(D1_6,{Zip,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Unsorted_People_Zip');
+//I1_3 := INDEX(D1_3,{LastName,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Unsorted_People_LastName');
+//I1_4 := INDEX(D1_4,{State,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Unsorted_People_State');
+//I1_5 := INDEX(D1_5,{City,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Unsorted_People_City');
+//I1_6 := INDEX(D1_6,{Zip,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Unsorted_People_Zip');
 
-I2_1 := INDEX(D2_1,{PersonID,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_PersonID');
+//I2_1 := INDEX(D2_1,{PersonID,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_PersonID');
 I2_2 := INDEX(D2_2,{FirstName,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_FirstName');
-I2_3 := INDEX(D2_3,{LastName,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_LastName');
-I2_4 := INDEX(D2_4,{State,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_State');
-I2_5 := INDEX(D2_5,{City,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_City');
-I2_6 := INDEX(D2_6,{Zip,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_Zip');
+//I2_3 := INDEX(D2_3,{LastName,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_LastName');
+//I2_4 := INDEX(D2_4,{State,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_State');
+//I2_5 := INDEX(D2_5,{City,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_City');
+//I2_6 := INDEX(D2_6,{Zip,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_Zip');
 
-B1_1 := BUILDINDEX(I1_1,OVERWRITE);
+//B1_1 := BUILDINDEX(I1_1,OVERWRITE);
 B1_2 := BUILDINDEX(I1_2,OVERWRITE);
-B1_3 := BUILDINDEX(I1_3,OVERWRITE);
-B1_4 := BUILDINDEX(I1_4,OVERWRITE);
-B1_5 := BUILDINDEX(I1_5,OVERWRITE);
-B1_6 := BUILDINDEX(I1_6,OVERWRITE);
+//B1_3 := BUILDINDEX(I1_3,OVERWRITE);
+//B1_4 := BUILDINDEX(I1_4,OVERWRITE);
+//B1_5 := BUILDINDEX(I1_5,OVERWRITE);
+//B1_6 := BUILDINDEX(I1_6,OVERWRITE);
 
-B2_1 := BUILDINDEX(I2_1,OVERWRITE);
+//B2_1 := BUILDINDEX(I2_1,OVERWRITE);
 B2_2 := BUILDINDEX(I2_2,OVERWRITE);
-B2_3 := BUILDINDEX(I2_3,OVERWRITE);
-B2_4 := BUILDINDEX(I2_4,OVERWRITE);
-B2_5 := BUILDINDEX(I2_5,OVERWRITE);
-B2_6 := BUILDINDEX(I2_6,OVERWRITE);
+//B2_3 := BUILDINDEX(I2_3,OVERWRITE);
+//B2_4 := BUILDINDEX(I2_4,OVERWRITE);
+//B2_5 := BUILDINDEX(I2_5,OVERWRITE);
+//B2_6 := BUILDINDEX(I2_6,OVERWRITE);
 
 
-P3 := SEQUENTIAL(B1_1,B1_2,B1_3,B1_4,B1_5,B1_6);
-P4 := SEQUENTIAL(B2_1,B2_2,B2_3,B2_4,B2_5,B2_6);
+P3 := SEQUENTIAL(B1_2);
+P4 := SEQUENTIAL(B2_2);
 SEQUENTIAL(P1,P2,P3,P4);

@@ -104,6 +104,17 @@ def fix_sudotty(ctx, user):
 
 @cli.command()
 @click.pass_context
+def fix_firewall(ctx):
+    with parallel.CommandAgent(show_result=False) as agent:
+        for host in ctx.obj['host_list']:
+            RemoteCommand(host, 'sudo systemctl stop firewalld', ignore_known_hosts=True).start()
+    with parallel.CommandAgent(show_result=False) as agent:
+        for host in ctx.obj['host_list']:
+            RemoteCommand(host, 'sudo systemctl disable firewalld', ignore_known_hosts=True).start()
+
+
+@cli.command()
+@click.pass_context
 def ip(ctx):
     """This return the internal ip address of the hosts.
 

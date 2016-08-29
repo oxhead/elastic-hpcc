@@ -4,6 +4,8 @@ import datetime
 import uuid
 import math
 import hashlib
+import json
+import re
 
 
 def get_timestamp():
@@ -44,3 +46,11 @@ def md5hash(content):
         for s in content:
             m.update(md5hash_raw(repr(s)).digest())
         return int(m.hexdigest(), 16)
+
+def json_pretty_print(json_object):
+    print(json.dumps(json_object, indent=4, sort_keys=True))
+
+
+def simple_string_match(pattern, target):
+    #print(pattern, target)
+    return len(re.findall(pattern, target)) > 0

@@ -100,6 +100,12 @@ class RoxieBenchmark(base.Benchmark):
         with open(workload_distribution_output_file, 'w') as f:
             json.dump(workload_distribution, f, indent=4, sort_keys=True)
 
+        self.logger.info("exporting Roxie partition access distribution")
+        access_distribution = roxie.get_part_access_statistics(self.cluster.get_nodes())
+        access_distribution_output_file = os.path.join(self.result_output_dir, "access_distribution.json")
+        with open(access_distribution_output_file, 'w') as f:
+            json.dump(access_distribution, f, indent=4, sort_keys=True)
+
     def run_benchmark(self):
         self.logger.info("run benchmark")
         self.logger.info("output dir = {}".format(self.output_dir))

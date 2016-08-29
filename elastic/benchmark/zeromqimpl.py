@@ -8,6 +8,7 @@ import logging
 import gevent
 import gevent.pool
 import gevent.queue
+from gevent.lock import BoundedSemaphore
 import yaml
 import zmq.green as zmq
 
@@ -118,6 +119,7 @@ class BenchmarkController(BenchmarkNode):
             self.timeline_completion = {}
             self.timeline_failure = {}
             self.logger = logging.getLogger(__name__)
+            self.statistics_lock = BoundedSemaphore(1)
 
         def start(self):
             self.logger.info("* jobs started")
@@ -138,7 +140,11 @@ class BenchmarkController(BenchmarkNode):
             self.num_finished_jobs += 1
             item_id = report['item']
             report.pop('item', None)
+            self.statistics_lock.acquire()
+            before_length = len(self.statistics)
             self.statistics[item_id] = report
+            #self.logger.info("on report: {}, before={}, after={}".format(item_id, before_length, len(self.statistics)))
+            self.statistics_lock.release()
             timeslot = int(self.time_last_report - self.time_start) + 1
             if report['success']:
                 self.counter_success += 1
@@ -170,6 +176,7 @@ class BenchmarkController(BenchmarkNode):
             }
 
         def get_statistics(self):
+            self.logger.info("## total reported jobs: {}".format(len(self.statistics)))
             return self.statistics
 
         def get_timeline_completion(self):
@@ -357,7 +364,7 @@ class BenchmarkController(BenchmarkNode):
 
         self.current_workload_record.completed_dispatch()
 
-        job_sender.close()
+        #job_sender.close()  # why close??
 
     def collector(self):
         self.logger.info('collector...')
@@ -443,20 +450,22 @@ class BenchmarkDriver(BenchmarkNode):
         self.receiver.connect("tcp://{}:{}".format(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_JOB_QUEUE_PORT)))
 
         while True:
-            if self.worker_queue.qsize() > self.worker_pool.size * 10:
-                self.logger.info("@ too much job, yield to others")
-                gevent.sleep(1)
+            #if self.worker_queue.qsize() > self.worker_pool.size * 10:
+            #    self.logger.info("@ too much job, yield to others")
+            #    gevent.sleep(1)
             self.logger.info("waiting for message")
             workload_item = self.receiver.recv_pyobj()
             # dirty hack
             workload_item.queue_timestamp = time.time()
             self.worker_queue.put(workload_item)
+            #self.logger.info("current queue size: {}".format(self.worker_queue.qsize()))
 
     def worker(self, worker_id):
         session = query.new_session()
         reporter_procotol = BenchmarkReporterProtocol(worker_id, self.sender)
         while True:
             worker_item = self.worker_queue.get()
+            self.logger.info("idle workers: {}, queue lengths: {}".format(self.worker_pool.free_count(), self.worker_queue.qsize()))
             self.logger.info("worker {} is processing roxie query {}".format(worker_id, worker_item.wid))
             start_timestamp = time.time()
             success, output_size, status_code, exception_description = query.execute_workload_item(session, worker_item, timeout=self.query_timeout)
