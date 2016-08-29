@@ -1,0 +1,56 @@
+workload:
+    type: constant
+    num_queries: 100
+    period: 10
+    distribution:
+        type: pareto
+        alpha: 3
+    selection:
+        type: uniform
+    endpoints:
+        - http://10.25.2.147:9876
+        - http://10.25.2.148:9876
+        - http://10.25.2.149:9876
+        - http://10.25.2.151:9876
+    applications:
+        sequential_search_firstname:
+            query_name: sequential_search_firstname
+            query_key: firstname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/firstname_list.txt
+        sequential_search_lastname:
+            query_name: sequential_search_lastname
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        #sequential_search_state:
+        #    query_name: sequential_search_state
+        #    query_key: state
+        #    key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/state_list.txt
+        sequential_search_city:
+            query_name: sequential_search_city
+            query_key: city
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/city_list.txt
+        sequential_search_zip:
+            query_name: sequential_search_zip
+            query_key: zip
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/zip_list.txt
+        random_search_firstname:
+            query_name: random_search_firstname
+            query_key: firstname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/firstname_list.txt
+        random_search_lastname:
+            query_name: random_search_lastname
+            query_key: lastname
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/lastname_list.txt
+        #random_search_state:
+        #    query_name: random_search_state
+        #    query_key: state
+        #    key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/state_list.txt
+        random_search_city:
+            query_name: random_search_city
+            query_key: city
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/city_list.txt
+        random_search_zip:
+            query_name: random_search_zip
+            query_key: zip
+            key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/zip_list.txt
+

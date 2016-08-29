@@ -1,0 +1,49 @@
+{
+    "10.25.2.131": {
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_city._1_of_4": 568,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_lastname._1_of_4": 2017,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_zip._1_of_4": 3573,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_city._1_of_4": 750,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_firstname._1_of_4": 86,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_lastname._1_of_4": 13,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_zip._1_of_4": 153
+    },
+    "10.25.2.147": {
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_city._1_of_4": 1396,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_firstname._1_of_4": 1,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_lastname._1_of_4": 6089,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_zip._1_of_4": 6713,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_city._1_of_4": 2927,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_firstname._1_of_4": 214,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_lastname._1_of_4": 29,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_zip._1_of_4": 506
+    },
+    "10.25.2.148": {
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_city._2_of_4": 180,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_firstname._2_of_4": 1,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_lastname._2_of_4": 627,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_zip._2_of_4": 1109
+    },
+    "10.25.2.149": {
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_city._3_of_4": 1,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_lastname._3_of_4": 6,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_zip._3_of_4": 24
+    },
+    "10.25.2.151": {},
+    "10.25.2.152": {
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_city._1_of_4": 1370,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_firstname._1_of_4": 3,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_lastname._1_of_4": 5762,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_zip._1_of_4": 8577,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_city._1_of_4": 3538,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_firstname._1_of_4": 233,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_lastname._1_of_4": 35,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_unsorted_people_zip._1_of_4": 583
+    },
+    "10.25.2.153": {
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_city._3_of_4": 2,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_lastname._3_of_4": 5,
+        "/var/lib/HPCCSystems/hpcc-data/roxie/mybenchmark/data_sorted_people_zip._3_of_4": 25
+    },
+    "10.25.2.157": {}
+}
