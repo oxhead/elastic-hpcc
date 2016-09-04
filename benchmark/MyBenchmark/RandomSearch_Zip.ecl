@@ -8,4 +8,5 @@ F1 := FETCH($.DeclareData.Person_Unsorted.FilePlus_Zip,
 	$.DeclareData.Person_Unsorted.IDX_Zip(Zip=input_zip),
 	RIGHT.RecPos);
 
-OUTPUT(CHOOSEN(F1,input_num,RANDOM()%64));
+//OUTPUT(CHOOSEN(F1,input_num,RANDOM()%64));
+OUTPUT(CHOOSEN(F1,input_num));

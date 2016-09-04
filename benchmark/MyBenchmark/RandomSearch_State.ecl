@@ -8,4 +8,5 @@ F1 := FETCH($.DeclareData.Person_Unsorted.FilePlus_State,
 	$.DeclareData.Person_Unsorted.IDX_State(State=input_state),
 	RIGHT.RecPos);
 
-OUTPUT(CHOOSEN(F1,input_num,RANDOM()%128));
+//OUTPUT(CHOOSEN(F1,input_num,RANDOM()%128));
+OUTPUT(CHOOSEN(F1,input_num));

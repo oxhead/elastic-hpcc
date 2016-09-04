@@ -12,4 +12,5 @@ F1 := FETCH($.DeclareData.Person_Unsorted.FilePlus_FirstName,
 	$.DeclareData.Person_Unsorted.IDX_FirstName(FirstName=input_first_name),
 	RIGHT.RecPos);
 
-OUTPUT(CHOOSEN(F1,input_num,RANDOM()%256));
+//OUTPUT(CHOOSEN(F1,input_num,RANDOM()%256));
+OUTPUT(CHOOSEN(F1,input_num));
