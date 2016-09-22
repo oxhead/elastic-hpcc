@@ -4,6 +4,8 @@
 
 
 ### Required Packages this project
+* Git
+  - sudo yum install git-all
 * Linux
   - sudo apt-get install sshpass ( for ssh key deploymeny on VCL)
   - sudo apt-get build-dep python3-lxml ( for the lxml library in pip)
