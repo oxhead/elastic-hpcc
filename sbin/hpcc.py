@@ -311,3 +311,14 @@ def gen_config(ctx, output, thor, roxie, support, num_replica, channel_mode, att
 def restore_data_placement(ctx, data_dir):
     click.echo('restoring data placement')
     roxie_tool.restore_data_placement(ctx.obj['host_list'], data_dir)
+
+@cli.command()
+@click.pass_context
+def fix_coredump(ctx):
+    """This changes the defaul value in init_roxie
+
+    This disable core dump in Roxie
+    """
+    for host in ctx.obj['host_list']:
+        roxie_config = "/opt/HPCCSystems/bin/init_roxie"
+        execute('ssh -t {} sudo sed -i "s/^ulimit/#ulimit/" {}'.format(host, roxie_config))

@@ -49,6 +49,13 @@ vcl --hosts ~/list.public ip > ~/list
   ```
 vcl --hosts ~/list.public fix_ssh
   ```
+
+1. Disable firewall
+
+  ```
+vcl --hosts ~/list.public fix_firewall
+  ```
+
 1. Install and uninstall the HPCC software on each node (this step should also create a user, user)
 
   ```

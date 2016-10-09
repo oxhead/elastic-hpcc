@@ -9,7 +9,7 @@ import gevent.queue
 from gevent.lock import Semaphore
 
 
-num_workers = 256
+num_workers = 16
 worker_pool = gevent.pool.Pool(num_workers)
 worker_queue = gevent.queue.Queue()
 mylock = Semaphore()
@@ -18,16 +18,17 @@ results = {}
 
 def run():
     endpoints = [
-        "http://10.25.2.147:9876",
-        "http://10.25.2.148:9876",
-        "http://10.25.2.149:9876",
-        "http://10.25.2.151:9876",
-        "http://10.25.2.152:9876",
-        "http://10.25.2.153:9876",
-        "http://10.25.2.157:9876",
-        "http://10.25.2.131:9876"
+        "http://10.25.2.127:9876",
+        "http://10.25.2.128:9876",
+        "http://10.25.2.129:9876",
+        "http://10.25.2.130:9876",
+        "http://10.25.2.131:9876",
+        "http://10.25.2.132:9876",
+        "http://10.25.2.133:9876",
+        "http://10.25.2.134:9876",
     ]
-    #endpoints = endpoints[:2]
+
+    endpoints = endpoints[:4]
 
     num_queries = num_workers * 100
 

@@ -21,6 +21,7 @@ class WorkloadConfig(config.BaseConfig):
     def parse_file(config_path):
         with open(config_path, 'r') as f:
             return WorkloadConfig(yaml.load(f))
+
     def merge(self, added):
         '''
         This is a workaround.
@@ -36,6 +37,8 @@ class WorkloadConfig(config.BaseConfig):
         self.set_config('workload.selection', added.lookup_config('workload.selection', self['workload.selection']))
         self.set_config('workload.endpoints', added.lookup_config('workload.endpoints', self['workload.endpoints']))
 
+    def select_endpoints(self, num):
+        self.set_config('workload.endpoints', self.lookup_config('workload.endpoints')[:num])
 
 class WorkloadType(Enum):
     poisson = 0
@@ -176,6 +179,11 @@ class Workload:
             if 'distribution' in app_setting:
                 selection_model = SelectionModel.new(app_setting['distribution'], key_list)
             else:
+                # test whether the keys are sorted??
+                #print(type(key_list), len(key_list))
+                #chunk_size = int(len(key_list)/4)
+                #print(len(key_list), chunk_size)
+                #selection_model = SelectionModel.new(global_distribution, key_list[3*chunk_size:])
                 selection_model = SelectionModel.new(global_distribution, key_list)
             app = RoxieApplication(query_name, endpoint_list, query_key, selection_model)
             apps[app_name] = app

@@ -84,7 +84,7 @@ class ExperimentConfig(BaseConfig):
 
 
 class Experiment:
-    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, dp=None, wait_time=60):
+    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, dp=None, wait_time=60, check_success=True):
         self.experiment_id = experiment_id
         self.benchmark_config = benchmark_config
         self.hpcc_cluster = hpcc_cluster
@@ -93,6 +93,7 @@ class Experiment:
         self.output_dir = output_dir
         self.dp = dp
         self.wait_time = wait_time
+        self.check_success = check_success
 
     def pre_run(self):
         self.hpcc_service.stop()
@@ -115,6 +116,7 @@ class Experiment:
                 with open(report_path, 'r') as f:
                     report_json = json.load(f)
                     if int(report_json['num_failed_jobs']) != 0:
+                        print("# of failed queries:", int(report_json['num_failed_jobs']))
                         return False
             except:
                 return False
@@ -133,7 +135,8 @@ class Experiment:
             time.sleep(self.wait_time)
             bm.run()
             self.post_run()
-            if not self.check_successful():
+            if self.check_success and not self.check_successful():
+                print("The experiment did not succeed and requires to rerun")
                 os.system("rm -rf {}".format(self.output_dir))
                 time.sleep(60)  # wait 60 seconds for recovering??
                 self.run()
@@ -141,7 +144,7 @@ class Experiment:
             print("Failed to run the experiment", e)
 
 
-def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, timeline_reuse=False, wait_time=60):
+def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, timeline_reuse=False, wait_time=60, check_success=True):
     for variable_setting in variable_setting_list:
         per_setting = copy.deepcopy(default_setting)
 
@@ -150,6 +153,9 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
 
         # create workload timeline
         workload_config = WorkloadConfig.parse_file(per_setting['experiment.workload_template'])
+        # this feature now can reduce redundancy workload configs
+        if per_setting.has_key('experiment.workload_endpoints'):
+            workload_config.select_endpoints(per_setting.lookup_config('experiment.workload_endpoints'))
         workload_config.merge(per_setting)  # should be able to merge
 
         if per_setting.has_key('experiment.applications'):
@@ -160,7 +166,7 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
                 app_config[app_name] = application_db[app_name]
             workload_config.set_config('workload.applications', app_config)
 
-        #print(json.dumps(workload_config.config, indent=4))
+        print(json.dumps(workload_config.config, indent=4))
 
         workload = Workload.from_config(workload_config)
         workload_timeline_dir = os.path.join(experiment_dir, '.workload_timeline') if experiment_dir else '.workload_timeline'
@@ -171,6 +177,9 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         #        print(v.wid, v.query_name, v.key)
         #print(workload.application_selection.distribution, workload.application_selection.probability_list)
         #analyze_timeline(workload_timeline.timeline)
+        #import sys
+        #sys.exit(0)
+
         experiment_id = per_setting['experiment.id']
         hpcc_cluster = HPCCCluster.parse_config(per_setting['cluster.target'])
         benchmark_config = BenchmarkConfig.parse_file(per_setting['cluster.benchmark'])
@@ -191,12 +200,19 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
             dp_old = placement.DataPlacement.new(old_locations)
             access_statistics = placement.PlacementTool.load_statistics(access_profile)
             new_nodes = [n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes]
+            node_statistics = placement.PlacementTool.compute_node_statistics(access_statistics)
+            print("Host statistics")
+            print(json.dumps(node_statistics, indent=4, sort_keys=True))
             if data_placement_type == placement.DataPlacementType.coarse_partial:
                 dp_new = placement.CoarseGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
+                print("Data placement")
+                print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
             elif data_placement_type == placement.DataPlacementType.fine_partial:
                 dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
+                print("Data placement")
+                print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
 
-        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, dp=dp_new, wait_time=wait_time)
+        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, dp=dp_new, wait_time=wait_time, check_success=check_success)
         experiment.workload_config = workload_config  # hack
         yield experiment
 

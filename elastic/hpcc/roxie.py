@@ -1,5 +1,6 @@
 import os
 import collections
+import logging
 
 from executor import execute
 from executor.ssh.client import RemoteCommand
@@ -59,6 +60,10 @@ def restore_data_placement(nodes, data_dir="/var/lib/HPCCSystems/hpcc-data/roxie
 
 
 def switch_data_placement(data_placement, data_dir="/var/lib/HPCCSystems/hpcc-data/roxie"):
+
+    logger = logging.getLogger('.'.join([__name__, "switch_data_placement"]))
+    logger.info("Executing data placement")
+
     def hide_files(nodes, data_dir):
         with parallel.CommandAgent(concurrency=len(nodes), show_result=False) as agent:
             cmd = "for d in `find " + data_dir + " -type d`; do echo $d; ls -F $d | grep -v '[/@=|]$' | sudo xargs -I {} mv $d/{} $d/.{}; done"
@@ -75,7 +80,9 @@ def switch_data_placement(data_placement, data_dir="/var/lib/HPCCSystems/hpcc-da
     show_index_files(data_placement.locations.keys(), data_dir=data_dir)
     with parallel.CommandAgent(concurrency=8, show_result=False) as agent:
         for node, partition_list in data_placement.locations.items():
+            #logger.info("Host: {}".format(node))
             for partition in partition_list:
+                #logger.info("\tpartition={}".format(partition))
                 agent.submit_remote_command(node, "sudo mv {} {}".format(get_hidden_partition(partition), partition), capture=False, silent=True)
 
 
