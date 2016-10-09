@@ -13,6 +13,7 @@ class DataPlacementType(enum.Enum):
     fine_partial = 3
     fine_all = 4
 
+
 class PlacementTool:
     @staticmethod
     def load_statistics(file_path):
@@ -126,8 +127,12 @@ class CoarseGrainedDataPlacement:
 class FineGrainedDataPlacement:
     @staticmethod
     def compute_optimal_placement(old_placement, new_nodes, access_statistics):
+        #print('computing...........')
+        #print(json.dumps(old_placement.locations, indent=4, sort_keys=True))
+        #print(new_nodes)
+        #print(json.dumps(access_statistics, indent=4, sort_keys=True))
         nodes_to_add = sorted(list(set(new_nodes) - set(old_placement.nodes)))
-        print(nodes_to_add)
+        #print(nodes_to_add)
         partition_statistics = {}
         for node, partition_list in access_statistics.items():
             for partition, count in partition_list.items():
@@ -144,7 +149,7 @@ class FineGrainedDataPlacement:
         num_allocation = math.ceil(len(nodes_to_add)/len(old_placement.nodes) * sum([len(partition_list) for partition_list in old_placement.locations.values()]))
         #print("@@", num_allocation)
 
-        #print('total:', num_allocation)
+        #print('Target allocations:', num_allocation)
         max_partition_per_node = math.ceil(num_allocation / len(nodes_to_add))
         max_allocation_per_partition = len(nodes_to_add)
         partition_allocation = {partition: round(num_allocation*percentage) for partition, percentage in partition_statistics_percentage.items()}
@@ -157,6 +162,7 @@ class FineGrainedDataPlacement:
         partition_allocation_adjusted = copy.copy(partition_allocation_sorted)
         current_index = 0
 
+        # Adjust to fit the maximum allocations
         for i in range(len(partition_allocation_sorted)):
             partition, count = partition_allocation_sorted[i]
             if count > max_allocation_per_partition:
@@ -168,13 +174,18 @@ class FineGrainedDataPlacement:
         #    print(count, partition)
 
 
+        '''
+        Allocation by access percentage may not fit to the total sum at all
+        Case 1: < maximum total allocations -> increase from the very top one
+        Case 2: > maximum total allocations -> decrease from the very down one
+        '''
         satisfied = False
         while not satisfied:
             current_allocation = sum([count for _, count in partition_allocation_adjusted])
+            #print("### current", current_allocation)
             if current_allocation == num_allocation:
                 satisfied = True
-            else:
-                # should have only one case: less than
+            elif current_allocation < num_allocation:
                 for i in range(len(partition_allocation_adjusted)):
                     if partition_allocation_adjusted[i][1] >= max_allocation_per_partition:
                         continue
@@ -187,6 +198,20 @@ class FineGrainedDataPlacement:
                             partition, count = partition_allocation_adjusted[i]
                             partition_allocation_adjusted[i] = (partition, count + 1)
                             #print("(2)", partition_allocation_adjusted[i])
+
+            elif current_allocation > num_allocation:
+                for i in reversed(range(len(partition_allocation_adjusted))):
+                    if partition_allocation_adjusted[i][1] <= 0:
+                        continue
+                    else:
+                        current_allocation = sum([count for _, count in partition_allocation_adjusted])
+                        if current_allocation <= num_allocation:
+                            break
+                        else:
+                            # print("(1)", partition_allocation_adjusted[i])
+                            partition, count = partition_allocation_adjusted[i]
+                            partition_allocation_adjusted[i] = (partition, count - 1)
+                            # print("(2)", partition_allocation_adjusted[i])
 
         #print('2) adjusted allocation:')
         #for partition, count in partition_allocation_adjusted:

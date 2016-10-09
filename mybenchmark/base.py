@@ -198,6 +198,8 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         if per_setting.has_key('experiment.data_placement'):
             data_placement_type, old_locations, access_profile = per_setting['experiment.data_placement']
             dp_old = placement.DataPlacement.new(old_locations)
+            #print("@@", per_setting['experiment.output_dir'])
+            #print('@@ access_profile:', access_profile)
             access_statistics = placement.PlacementTool.load_statistics(access_profile)
             new_nodes = [n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes]
             node_statistics = placement.PlacementTool.compute_node_statistics(access_statistics)
