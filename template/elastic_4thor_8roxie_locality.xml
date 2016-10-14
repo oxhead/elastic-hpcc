@@ -188,7 +188,7 @@
                 udpOutQsPriority="0"
                 udpQueueSize="200"
                 udpRequestToSendTimeout="5"
-                udpResendEnabled="false"
+                udpResendEnabled="true"
                 udpRetryBusySenders="0"
                 udpSendCompletedInData="false"
                 udpSendQueueSize="100"
@@ -197,7 +197,7 @@
                 useHardLink="false"
                 useLogQueue="true"
                 useMemoryMappedIndexes="false"
-                useRemoteResources="false">
+                useRemoteResources="False">
    <RoxieFarmProcess aclName=""
                      listenQueue="200"
                      name="farm1"

@@ -128,7 +128,7 @@ class Experiment:
         print("Output:", self.output_dir)
         if os.path.exists(self.output_dir):
             print("The output directory exists")
-            return
+            return False
         try:
             self.pre_run()
             bm = RoxieBenchmark(self.hpcc_cluster, self.benchmark_config, self.workload_timeline, output_dir=self.output_dir)
@@ -140,8 +140,10 @@ class Experiment:
                 os.system("rm -rf {}".format(self.output_dir))
                 time.sleep(60)  # wait 60 seconds for recovering??
                 self.run()
+            return True
         except Exception as e:
             print("Failed to run the experiment", e)
+        return False
 
 
 def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, timeline_reuse=False, wait_time=60, check_success=True):
@@ -211,6 +213,10 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
                 print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
             elif data_placement_type == placement.DataPlacementType.fine_partial:
                 dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
+                print("Data placement")
+                print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
+            elif data_placement_type == placement.DataPlacementType.fine_all:
+                dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement_complete(dp_old, new_nodes, access_statistics)
                 print("Data placement")
                 print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
 

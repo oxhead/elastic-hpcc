@@ -24,7 +24,8 @@ def show_layout(experiment_id, dp_type_name, dp_name):
     script_dir = os.path.dirname(os.path.realpath(__file__))
 
     myplacement = importlib.import_module("mybenchmark.{}.myplacement".format(experiment_id))
-    dp_type = placement.DataPlacementType.coarse_partial if dp_type_name == "coarse" else placement.DataPlacementType.fine_partial
+    #dp_type = placement.DataPlacementType.coarse_partial if dp_type_name == "coarse" else placement.DataPlacementType.fine_partial
+    dp_type = placement.DataPlacementType[dp_type_name]
     access_profile = os.path.join(script_dir, "..", "mybenchmark", experiment_id, "placement", "{}.json".format(dp_name))
 
     print(experiment_id, dp_type, access_profile)
@@ -40,6 +41,10 @@ def show_layout(experiment_id, dp_type_name, dp_name):
         print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
     elif dp_type == placement.DataPlacementType.fine_partial:
         dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
+        print("Data placement")
+        print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
+    elif dp_type == placement.DataPlacementType.fine_all:
+        dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement_complete(dp_old, new_nodes, access_statistics)
         print("Data placement")
         print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
 

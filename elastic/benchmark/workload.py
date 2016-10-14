@@ -214,7 +214,7 @@ class Workload:
 
 class SelectionModel:
 
-    def __init__(self, distribution_type, probability_list, objects, **kwargs):
+    def __init__(self, distribution_type, probability_list, objects, enable_sort=True, **kwargs):
         self.distribution = distribution_type
         self.probability_list = probability_list
         self.objects = objects
