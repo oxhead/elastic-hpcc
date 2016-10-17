@@ -876,6 +876,7 @@
                daliServers="mydali"
                description="Thor process"
                fileCacheLimit="1800"
+               globalMemorySize="4192"
                heapRetainMemory="false"
                heapUseHugePages="false"
                heapUseTransparentHugePages="true"

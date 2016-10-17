@@ -28,12 +28,25 @@ def calculate_file_partition_access(workload_distribution):
 
     print(json.dumps(partition_access, indent=4, sort_keys=True))
 
+def calculate_aggregate_file_partition_access(workload_distribution):
+    partition_access = {}
+    for host, records in workload_distribution.items():
+        for partition, access in records.items():
+            partition_number = partition.split('.')[-1].split('_')[1]
+            if partition_number not in partition_access:
+                partition_access[partition_number] = 0
+            partition_access[partition_number] += access
+
+    print(json.dumps(partition_access, indent=4, sort_keys=True))
+
 
 def show_data(distribution_type, input_file):
     with open(input_file, 'r') as f:
         workload_distribution = json.load(f)
     print(distribution_type, input_file)
     calculate_host_partition_access(workload_distribution)
+    calculate_file_partition_access(workload_distribution)
+    calculate_aggregate_file_partition_access(workload_distribution)
 
 if __name__ == "__main__":
     dir_path = sys.argv[1]

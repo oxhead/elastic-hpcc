@@ -4,6 +4,7 @@ import pprint
 import pickle
 import json
 import hashlib
+import shutil
 
 from elastic import init
 from elastic.benchmark.config import BaseConfig
@@ -84,13 +85,14 @@ class ExperimentConfig(BaseConfig):
 
 
 class Experiment:
-    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, dp=None, wait_time=60, check_success=True):
+    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=None, dp=None, wait_time=60, check_success=True):
         self.experiment_id = experiment_id
         self.benchmark_config = benchmark_config
         self.hpcc_cluster = hpcc_cluster
         self.hpcc_service = HPCCService(self.hpcc_cluster)
         self.workload_timeline = workload_timeline
         self.output_dir = output_dir
+        self.wp = wp
         self.dp = dp
         self.wait_time = wait_time
         self.check_success = check_success
@@ -104,7 +106,13 @@ class Experiment:
         self.hpcc_service.start()
 
     def post_run(self):
-        pass
+        wp_path = os.path.join(self.output_dir, "result", "workload_profile.json")
+        if self.wp is not None:
+            shutil.copyfile(self.wp, wp_path)
+        dp_path = os.path.join(self.output_dir, "result", "data_placement.json")
+        if self.dp is not None:
+            with open(dp_path, 'w') as f:
+                json.dump(self.dp.locations, f, indent=4, sort_keys=True)
 
     def check_successful(self):
         # hard coded here, or should do the check in RoxieBenchmark?
@@ -134,12 +142,12 @@ class Experiment:
             bm = RoxieBenchmark(self.hpcc_cluster, self.benchmark_config, self.workload_timeline, output_dir=self.output_dir)
             time.sleep(self.wait_time)
             bm.run()
-            self.post_run()
             if self.check_success and not self.check_successful():
                 print("The experiment did not succeed and requires to rerun")
                 os.system("rm -rf {}".format(self.output_dir))
                 time.sleep(60)  # wait 60 seconds for recovering??
                 self.run()
+            self.post_run()
             return True
         except Exception as e:
             print("Failed to run the experiment", e)
@@ -149,10 +157,10 @@ class Experiment:
 def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, timeline_reuse=False, wait_time=60, check_success=True):
     for variable_setting in variable_setting_list:
         per_setting = copy.deepcopy(default_setting)
-
+        #print(json.dumps(per_setting.config, indent=4))
         for setting_name, setting_value in variable_setting.items():
             per_setting.set_config(setting_name, setting_value)
-
+        #print(json.dumps(per_setting.config, indent=4))
         # create workload timeline
         workload_config = WorkloadConfig.parse_file(per_setting['experiment.workload_template'])
         # this feature now can reduce redundancy workload configs
@@ -169,6 +177,8 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
             workload_config.set_config('workload.applications', app_config)
 
         print(json.dumps(workload_config.config, indent=4))
+        #import sys
+        #sys.exit(0)
 
         workload = Workload.from_config(workload_config)
         workload_timeline_dir = os.path.join(experiment_dir, '.workload_timeline') if experiment_dir else '.workload_timeline'
@@ -220,7 +230,9 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
                 print("Data placement")
                 print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
 
-        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, dp=dp_new, wait_time=wait_time, check_success=check_success)
+        #import sys
+        #sys.exit(0)
+        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=access_profile, dp=dp_new, wait_time=wait_time, check_success=check_success)
         experiment.workload_config = workload_config  # hack
         yield experiment
 

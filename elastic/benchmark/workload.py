@@ -14,6 +14,7 @@ from scipy import stats
 
 from elastic.benchmark import config
 from elastic.util import helper
+from elastic.util import collection as collection_helper
 
 
 class WorkloadConfig(config.BaseConfig):
@@ -158,7 +159,11 @@ class Workload:
 
     @staticmethod
     def from_config(workload_config):
+        # need to check before load config
         global_distribution = workload_config.lookup_config("workload.distribution")
+        #print("@@", global_distribution)
+        global_key_list = global_distribution['key_list'] if 'key_list' in global_distribution else helper.parse_file(global_distribution['key_file'])
+        global_selection_model = SelectionModel.new(global_distribution, global_key_list)
         # print("@ global:", global_distribution)
 
         endpoint_list = []
@@ -170,23 +175,37 @@ class Workload:
         # roxie application setting
         apps = {}
         for (app_name, app_setting) in workload_config.lookup_config("workload.applications").items():
+            #print(app_name, app_setting)
             #if 'endpoint' in app_setting:
             #    endpoint = app_setting['endpoint']
             query_name = app_setting['query_name']
             query_key = app_setting['query_key']
-            key_list = app_setting['key_list'] if 'key_list' in app_setting else helper.parse_file(app_setting['key_file'])
-            selection_model = None
             if 'distribution' in app_setting:
+                key_list = app_setting['key_list'] if 'key_list' in app_setting else helper.parse_file(app_setting['key_file'])
                 selection_model = SelectionModel.new(app_setting['distribution'], key_list)
+
             else:
                 # test whether the keys are sorted??
                 #print(type(key_list), len(key_list))
                 #chunk_size = int(len(key_list)/4)
                 #print(len(key_list), chunk_size)
                 #selection_model = SelectionModel.new(global_distribution, key_list[3*chunk_size:])
-                selection_model = SelectionModel.new(global_distribution, key_list)
-            app = RoxieApplication(query_name, endpoint_list, query_key, selection_model)
-            apps[app_name] = app
+                #selection_model = SelectionModel.new(global_distribution, key_list)
+                selection_model = global_selection_model
+            # lazy hack here
+            if query_name.endswith(']'):
+                app_prefix = query_name.split('[')[0]
+                #print("@@", app_prefix)
+                range_str = query_name.split('[')[-1].split(']')[0]
+                id_start, id_end = range_str.split('-')
+                #print("##", id_start, id_end)
+                for i in range(int(id_start), int(id_end) + 1):
+                    new_query_name = "{}{}".format(app_prefix, i)
+                    app = RoxieApplication(new_query_name, endpoint_list, query_key, selection_model)
+                    apps[new_query_name] = app
+            else:
+                app = RoxieApplication(query_name, endpoint_list, query_key, selection_model)
+                apps[app_name] = app
 
         # workload setting
         application_selection = SelectionModel.new(workload_config.lookup_config("workload.selection"), apps)
@@ -214,7 +233,7 @@ class Workload:
 
 class SelectionModel:
 
-    def __init__(self, distribution_type, probability_list, objects, enable_sort=True, **kwargs):
+    def __init__(self, distribution_type, probability_list, objects, **kwargs):
         self.distribution = distribution_type
         self.probability_list = probability_list
         self.objects = objects
@@ -250,7 +269,8 @@ class SelectionModel:
         return rv_p_accumulate
 
     @staticmethod
-    def new(config_object, objects):
+    def new(config_object, objects, kind='coarse'):
+        # kind: nature | chunk
         logger = logging.getLogger('.'.join([__name__, SelectionModel.__class__.__name__]))
         #logger.info('Generating distribution')
         logger.debug(config_object)
@@ -290,10 +310,33 @@ class SelectionModel:
 
         else:
             raise Exception("Undefined distribution type")
-        x_min = statistics_distribution.ppf(0.0000001, *params)
-        x_max = statistics_distribution.ppf(0.9999999, *params)
-        probability_list = statistics_distribution.cdf(np.arange(x_min, x_max, (x_max - x_min) / len(objects)), *params)
-        return SelectionModel(DistributionType.uniform, probability_list, objects, param=params)
+
+        kind = config_object['kind'] if 'kind' in config_object else 'nature'
+        if kind == 'nature':
+            x_min = statistics_distribution.ppf(0.0000001, *params)
+            x_max = statistics_distribution.ppf(0.9999999, *params)
+            probability_list = statistics_distribution.cdf(np.arange(x_min, x_max, (x_max - x_min) / len(objects)), *params)
+            return SelectionModel(distribution_type, probability_list, objects, param=params)
+        elif kind == 'chunk':
+            #print('chunck model..........')
+            num_chunks = int(config_object['num_chunks'])
+            x_min = statistics_distribution.ppf(0.0000001, *params)
+            x_max = statistics_distribution.ppf(0.9999999, *params)
+            x_list = [x_min + (x_max - x_min) / num_chunks * i for i in range(1, num_chunks + 1)]
+            cdf_list = statistics_distribution.cdf(x_list, *params)
+            cdf_list = np.append([0], cdf_list)
+            pdf_list = sorted(np.diff(cdf_list), reverse=True)
+            probability_list = pdf_list
+            for i in range(len(probability_list) - 1):
+                probability_list[i + 1] += probability_list[i]
+            probability_list[-1] = 1.0
+            #print(probability_list)
+            #cdf_diff = np.diff(cdf_list)
+            #print('before)', cdf_list)
+            #reversed_cdf_list = list(reversed([abs(n-1) for n in cdf_list]))
+            #print('after)', list(reversed_cdf_list))
+            object_chunks = collection_helper.split_list(objects, num_chunks)
+            return ChunkSelectionModel(distribution_type, probability_list, object_chunks, param=params)
 
     @staticmethod
     def new_fixed(objects, percentages):
@@ -388,6 +431,28 @@ class SelectionModel:
     def __hash__(self):
         return helper.md5hash(self.__repr__())
 
+
+class ChunkSelectionModel:
+
+    def __init__(self, distribution_type, probability_list, object_records, **kwargs):
+        self.distribution = distribution_type
+        self.probability_list = probability_list
+        self.object_records = object_records
+        # TODO: not efficient?
+        # self.key_list = list(self.objects.keys()) if type(self.objects) is dict else list(range(len(objects)))
+        self.kwargs = kwargs
+        #print(probability_list)
+
+    def select(self):
+        chunk_index = self.select_chunk()
+        chunk = self.object_records[chunk_index]
+        return chunk[random.randint(0, len(chunk)-1)]
+
+    def select_chunk(self):
+        rv = random.random()
+        chunk_index = bisect.bisect_left(self.probability_list, rv)
+        #print(rv, chunk_index)
+        return chunk_index
 
 class WorkloadItem:
     def __init__(self, wid, query_name, endpoint, query_key, key):

@@ -115,7 +115,7 @@
                 ldapPassword=""
                 ldapUser="roxie"
                 leafCacheMem="50"
-                linuxYield="true"
+                linuxYield="false"
                 localFilesExpire="-1"
                 localSlave="false"
                 lockDali="false"
@@ -125,9 +125,9 @@
                 logQueueLen="512"
                 lowTimeout="10000"
                 maxBlockSize="10000000"
-                maxLocalFilesOpen="8000"
+                maxLocalFilesOpen="4000"
                 maxLockAttempts="5"
-                maxRemoteFilesOpen="8000"
+                maxRemoteFilesOpen="1000"
                 memoryStatsInterval="60"
                 memTraceLevel="1"
                 memTraceSizeLimit="0"
@@ -143,9 +143,9 @@
                 name="myroxie"
                 nodeCacheMem="100"
                 nodeCachePreload="false"
-                numDataCopies="8"
+                numDataCopies="4"
                 parallelAggregate="0"
-                perChannelFlowLimit="30"
+                perChannelFlowLimit="10"
                 pingInterval="60"
                 pluginsPath="/opt/HPCCSystems/plugins"
                 preabortIndexReadsThreshold="100"
@@ -197,7 +197,7 @@
                 useHardLink="false"
                 useLogQueue="true"
                 useMemoryMappedIndexes="false"
-                useRemoteResources="true">
+                useRemoteResources="false">
    <RoxieFarmProcess aclName=""
                      listenQueue="200"
                      name="farm1"
@@ -214,10 +214,6 @@
    <RoxieServerProcess computer="node002128" name="node002128" netAddress="10.25.2.128"/>
    <RoxieServerProcess computer="node002129" name="node002129" netAddress="10.25.2.129"/>
    <RoxieServerProcess computer="node002130" name="node002130" netAddress="10.25.2.130"/>
-   <RoxieServerProcess computer="node002131" name="node002131" netAddress="10.25.2.131"/>
-   <RoxieServerProcess computer="node002132" name="node002132" netAddress="10.25.2.132"/>
-   <RoxieServerProcess computer="node002133" name="node002133" netAddress="10.25.2.133"/>
-   <RoxieServerProcess computer="node002134" name="node002134" netAddress="10.25.2.134"/>
   </RoxieCluster>
   <Topology build="_" buildSet="topology" name="topology">
    <Cluster alias="" name="hthor" prefix="hthor">
@@ -480,13 +476,13 @@
    <Category dir="/etc/[NAME]/[INST]" name="conf"/>
    <Category dir="/var/lib/[NAME]/[INST]/temp" name="temp"/>
    <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data2"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data3"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data4"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data5"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data6"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data7"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data8"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data2/[COMPONENT]" name="data2"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data3/[COMPONENT]" name="data3"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data4/[COMPONENT]" name="data4"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data5/[COMPONENT]" name="data5"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data6/[COMPONENT]" name="data6"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data7/[COMPONENT]" name="data7"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data8/[COMPONENT]" name="data8"/>
    <Category dir="/var/lib/[NAME]/hpcc-mirror/[COMPONENT]" name="mirror"/>
    <Category dir="/var/lib/[NAME]/queries/[INST]" name="query"/>
    <Category dir="/var/lock/[NAME]/[INST]" name="lock"/>
@@ -795,79 +791,79 @@
                     buildSet="dafilesrv"
                     description="DaFileSrv process"
                     name="mydafilesrv"
-                    parallelRequestLimit="100"
-                    throttleCPULimit="85"
+                    parallelRequestLimit="20"
+                    throttleCPULimit="75"
                     throttleDelayMs="5000"
                     version="1">
    <Instance computer="node002122"
              directory="/var/lib/HPCCSystems/mydafilesrv"
              name="s1"
              netAddress="10.25.2.122"
-             parallelRequestLimit="100"
-             throttleCPULimit="85"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
              throttleDelayMs="5000"/>
    <Instance computer="node002127"
              directory="/var/lib/HPCCSystems/mydafilesrv"
              name="s2"
              netAddress="10.25.2.127"
-             parallelRequestLimit="100"
-             throttleCPULimit="85"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
              throttleDelayMs="5000"/>
    <Instance computer="node002128"
              directory="/var/lib/HPCCSystems/mydafilesrv"
              name="s3"
              netAddress="10.25.2.128"
-             parallelRequestLimit="100"
-             throttleCPULimit="85"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
              throttleDelayMs="5000"/>
    <Instance computer="node002129"
              directory="/var/lib/HPCCSystems/mydafilesrv"
              name="s4"
              netAddress="10.25.2.129"
-             parallelRequestLimit="100"
-             throttleCPULimit="85"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
              throttleDelayMs="5000"/>
    <Instance computer="node002130"
              directory="/var/lib/HPCCSystems/mydafilesrv"
              name="s5"
              netAddress="10.25.2.130"
-             parallelRequestLimit="100"
-             throttleCPULimit="85"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
              throttleDelayMs="5000"/>
    <Instance computer="node002131"
              directory="/var/lib/HPCCSystems/mydafilesrv"
              name="s6"
              netAddress="10.25.2.131"
-             parallelRequestLimit="100"
-             throttleCPULimit="85"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
              throttleDelayMs="5000"/>
    <Instance computer="node002132"
              directory="/var/lib/HPCCSystems/mydafilesrv"
              name="s7"
              netAddress="10.25.2.132"
-             parallelRequestLimit="100"
-             throttleCPULimit="85"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
              throttleDelayMs="5000"/>
    <Instance computer="node002133"
              directory="/var/lib/HPCCSystems/mydafilesrv"
              name="s8"
              netAddress="10.25.2.133"
-             parallelRequestLimit="100"
-             throttleCPULimit="85"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
              throttleDelayMs="5000"/>
    <Instance computer="node002134"
              directory="/var/lib/HPCCSystems/mydafilesrv"
              name="s9"
              netAddress="10.25.2.134"
-             parallelRequestLimit="100"
-             throttleCPULimit="85"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
              throttleDelayMs="5000"/>
    <Instance computer="node002136"
              directory="/var/lib/HPCCSystems/mydafilesrv"
              name="s10"
              netAddress="10.25.2.136"
-             parallelRequestLimit="100"
-             throttleCPULimit="85"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
              throttleDelayMs="5000"/>
   </DafilesrvProcess>
   <ThorCluster autoAffinity="true"
@@ -894,7 +890,7 @@
                replicateAsync="true"
                replicateOutputs="true"
                slaveport="20100"
-               slavesPerNode="1"
+               slavesPerNode="8"
                watchdogEnabled="true"
                watchdogProgressEnabled="true">
    <SwapNode AutoSwapNode="false"/>

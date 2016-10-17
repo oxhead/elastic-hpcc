@@ -196,7 +196,7 @@
                 useHardLink="false"
                 useLogQueue="true"
                 useMemoryMappedIndexes="false"
-                useRemoteResources="true">
+                useRemoteResources="false">
    <RoxieFarmProcess aclName=""
                      listenQueue="200"
                      name="farm1"
@@ -479,13 +479,13 @@
    <Category dir="/etc/[NAME]/[INST]" name="conf"/>
    <Category dir="/var/lib/[NAME]/[INST]/temp" name="temp"/>
    <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data2/[COMPONENT]" name="data2"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data3/[COMPONENT]" name="data3"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data4/[COMPONENT]" name="data4"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data5/[COMPONENT]" name="data5"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data6/[COMPONENT]" name="data6"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data7/[COMPONENT]" name="data7"/>
-   <Category dir="/var/lib/[NAME]/hpcc-data8/[COMPONENT]" name="data8"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data2"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data3"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data4"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data5"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data6"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data7"/>
+   <Category dir="/var/lib/[NAME]/hpcc-data/[COMPONENT]" name="data8"/>
    <Category dir="/var/lib/[NAME]/hpcc-mirror/[COMPONENT]" name="mirror"/>
    <Category dir="/var/lib/[NAME]/queries/[INST]" name="query"/>
    <Category dir="/var/lock/[NAME]/[INST]" name="lock"/>
@@ -879,6 +879,7 @@
                daliServers="mydali"
                description="Thor process"
                fileCacheLimit="1800"
+               globalMemorySize="4192"
                heapRetainMemory="false"
                heapUseHugePages="false"
                heapUseTransparentHugePages="true"
