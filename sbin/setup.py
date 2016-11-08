@@ -12,6 +12,7 @@ setup(
         'benchmark',
         'mycontroller',
         'mydriver',
+        'simulator'
     ],
     include_package_data=True,
     install_requires=[
@@ -30,6 +31,7 @@ setup(
             'benchmark=benchmark:cli',
             'mycontroller=mycontroller:cli',
             'mydriver=mydriver:cli',
+            'simulator=simulator:cli'
         ]
     }
 )
