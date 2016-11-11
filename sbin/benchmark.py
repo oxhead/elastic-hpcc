@@ -74,23 +74,6 @@ def service(ctx, action):
 @cli.command()
 @click.option('-n', '--node', multiple=True)
 @click.pass_context
-def prepare_package(ctx, node):
-    deploy_set = set()
-    if not network_util.is_local_ip(ctx.obj['_config'].get_controller()):
-        deploy_set.add(ctx.obj['_config'].get_controller())
-    for driver_node in ctx.obj['_config'].get_drivers():
-        if not network_util.is_local_ip(driver_node):
-            deploy_set.add(driver_node)
-    with parallel.CommandAgent(concurrency=1, show_result=False) as agent:
-        for host in deploy_set:
-            agent.submit_remote_command(host, "sudo yum -y install epel-release && sudo yum -y install python34 python34-devel", silent=True)
-    with parallel.CommandAgent(concurrency=1, show_result=False) as agent:
-        for host in deploy_set:
-            agent.submit_remote_command(host, "cd /tmp; wget https://bootstrap.pypa.io/get-pip.py; sudo python3 get-pip.py; sudo pip install virtualenv", silent=True)
-
-@cli.command()
-@click.option('-n', '--node', multiple=True)
-@click.pass_context
 def install_package(ctx, node):
     deploy_set = set()
     if not network_util.is_local_ip(ctx.obj['_config'].get_controller()):
@@ -98,6 +81,15 @@ def install_package(ctx, node):
     for driver_node in ctx.obj['_config'].get_drivers():
         if not network_util.is_local_ip(driver_node):
             deploy_set.add(driver_node)
+    with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
+        for host in deploy_set:
+            agent.submit_remote_command(host, "sudo yum -y install epel-release python34 python34-devel", silent=True)
+    with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
+        for host in deploy_set:
+            agent.submit_remote_command(host, "cd /tmp; wget https://bootstrap.pypa.io/get-pip.py; sudo python3 get-pip.py", silent=True)
+    with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
+        for host in deploy_set:
+            agent.submit_remote_command(host, "sudo pip install virtualenv", silent=True)
     with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
         for host in deploy_set:
             agent.submit_remote_command(host, "cd ~/elastic-hpcc; source install.sh", silent=True)
@@ -120,6 +112,11 @@ def deploy(ctx):
     with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
         for host in deploy_set:
              agent.submit_command('rsync -e "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" ~/elastic-hpcc/benchmark/*.py {}:~/elastic-hpcc/benchmark'.format(host))
+
+    with parallel.CommandAgent(concurrency=len(deploy_set), show_result=False) as agent:
+        for host in deploy_set:
+            agent.submit_remote_command(host, "mkdir -p ~/elastic-hpcc/logs", silent=True)
+
 
 @cli.command()
 @click.pass_context

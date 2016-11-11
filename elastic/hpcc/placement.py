@@ -12,6 +12,7 @@ class DataPlacementType(enum.Enum):
     coarse_all = 2
     fine_partial = 3
     fine_all = 4
+    complete = 5
 
 
 class PlacementTool:
@@ -67,6 +68,14 @@ class DataPlacement:
         self.nodes = nodes
         self.partitions = partitions
         self.locations = locations
+
+
+class CompleteDataPlacement:
+    @staticmethod
+    def compute_optimal_placement(old_placement, new_nodes):
+        all_nodes = list(set(old_placement.nodes + new_nodes))
+        all_locations = {n: old_placement.partitions for n in all_nodes}
+        return DataPlacement(all_nodes, old_placement.partitions, all_locations)
 
 
 class CoarseGrainedDataPlacement:

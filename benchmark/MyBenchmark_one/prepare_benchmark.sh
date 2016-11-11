@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # 1) Upload data
-#thor run --ecl ${DIR}/GenData_one.ecl --wait_until_complete
+#thor run --ecl ${DIR}/GenData_16.ecl --wait_until_complete
 
 # 2) Publish the query
 for (( i=1;i<=16;i++ ));

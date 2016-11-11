@@ -76,8 +76,11 @@ def switch_data_placement(data_placement, data_dir="/var/lib/HPCCSystems/hpcc-da
     def get_hidden_partition(partition):
         return os.path.dirname(partition) + "/." + os.path.basename(partition)
 
+    logger.info("Hiding all data files")
     hide_files(data_placement.locations.keys(), data_dir=data_dir)
+    logger.info("Showing all index files")
     show_index_files(data_placement.locations.keys(), data_dir=data_dir)
+    logger.info("Showing necessary data files")
     with parallel.CommandAgent(concurrency=8, show_result=False) as agent:
         for node, partition_list in data_placement.locations.items():
             #logger.info("Host: {}".format(node))

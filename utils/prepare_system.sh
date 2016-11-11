@@ -9,17 +9,17 @@ sudo yum install git bash-completion
 sudo yum -y groupinstall "Development Tools"
 sudo yum -y install cmake
 # Fedora
-sudo yum install gcc-c++ gcc make fedora-packager cmake bison flex binutils-devel openldap-devel libicu-devel  xerces-c-devel xalan-c-devel libarchive-devel boost-devel openssl-devel apr-devel apr-util-devel
+#sudo yum install gcc-c++ gcc make fedora-packager cmake bison flex binutils-devel openldap-devel libicu-devel  xerces-c-devel xalan-c-devel libarchive-devel boost-devel openssl-devel apr-devel apr-util-devel
 # CentOS 6.4
 sudo yum install gcc-c++ gcc make bison flex binutils-devel openldap-devel libicu-devel libxslt-devel libarchive-devel boost-devel openssl-devel apr-devel apr-util-devel hiredis-devel numactl-devel libmysqlclient-dev libevent-devel tbb-devel
 
 # Build sshpass
-wget http://downloads.sourceforge.net/project/sshpass/sshpass/1.06/sshpass-1.06.tar.gz
-tar xf sshpass-1.06.tar.gz
-cd sshpass-1.06
-./configure
-make
-sudo make install
+#wget http://downloads.sourceforge.net/project/sshpass/sshpass/1.06/sshpass-1.06.tar.gz
+#tar xf sshpass-1.06.tar.gz
+#cd sshpass-1.06
+#./configure
+#make
+#sudo make install
 
 
 # Build Python3

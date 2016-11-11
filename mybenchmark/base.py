@@ -207,28 +207,35 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         output_dir = per_setting['experiment.output_dir']
 
         dp_new = None
+        access_profile = None
         if per_setting.has_key('experiment.data_placement'):
             data_placement_type, old_locations, access_profile = per_setting['experiment.data_placement']
             dp_old = placement.DataPlacement.new(old_locations)
+            new_nodes = [n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes]
             #print("@@", per_setting['experiment.output_dir'])
             #print('@@ access_profile:', access_profile)
-            access_statistics = placement.PlacementTool.load_statistics(access_profile)
-            new_nodes = [n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes]
-            node_statistics = placement.PlacementTool.compute_node_statistics(access_statistics)
-            print("Host statistics")
-            print(json.dumps(node_statistics, indent=4, sort_keys=True))
-            if data_placement_type == placement.DataPlacementType.coarse_partial:
-                dp_new = placement.CoarseGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
+
+            if data_placement_type == placement.DataPlacementType.complete:
+                dp_new = placement.CompleteDataPlacement.compute_optimal_placement(dp_old, new_nodes)
                 print("Data placement")
                 print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
-            elif data_placement_type == placement.DataPlacementType.fine_partial:
-                dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
-                print("Data placement")
-                print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
-            elif data_placement_type == placement.DataPlacementType.fine_all:
-                dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement_complete(dp_old, new_nodes, access_statistics)
-                print("Data placement")
-                print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
+            else:
+                access_statistics = placement.PlacementTool.load_statistics(access_profile)
+                node_statistics = placement.PlacementTool.compute_node_statistics(access_statistics)
+                print("Host statistics")
+                print(json.dumps(node_statistics, indent=4, sort_keys=True))
+                if data_placement_type == placement.DataPlacementType.coarse_partial:
+                    dp_new = placement.CoarseGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
+                    print("Data placement")
+                    print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
+                elif data_placement_type == placement.DataPlacementType.fine_partial:
+                    dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
+                    print("Data placement")
+                    print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
+                elif data_placement_type == placement.DataPlacementType.fine_all:
+                    dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement_complete(dp_old, new_nodes, access_statistics)
+                    print("Data placement")
+                    print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
 
         #import sys
         #sys.exit(0)
