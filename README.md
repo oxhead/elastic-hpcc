@@ -83,11 +83,17 @@ vcl --hosts ~/list deploy_key hpcc
 hpcc gen_config --output /tmp/mycluster.xml --overwrite --thor 5 --roxie 5 --channel_mode simple
     ```
 
+1. Modify the configuration to avoid exception in some cases
+  ```
+Add globalMemorySize="4096" to ThorCluster in the environment.xml
+  ```
+
 1. Deploy the generated configuration files to all the nodes, e.g.
 
   ```
 hpcc --hosts ~/list deploy_config -c /etc/HPCCSystems/source/mycluster.xml
   ```
+
 1. (Optional) Clear the system setting, e.g.
 
   ```
@@ -201,6 +207,13 @@ benchmark deploy
 
   ```
 benchmark --config conf/6driver.yaml install_package
+  ```
+1. Fix the permission on the controller node
+
+  ```
+vcl --host [controller ip] fix_ssh
+vcl --host [controller ip] fix_sudotty
+vcl --host [controller ip] fix_firewall
   ```
 
 1. Copy the benchmark configuarion
