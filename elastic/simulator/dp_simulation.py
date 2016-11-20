@@ -22,10 +22,10 @@ class WorkloadGenerator:
             params = []
             statistics_distribution = stats.uniform;
         elif distribution_type == 'normal':
-            params = []
+            params = []  # mean, std
             statistics_distribution = stats.norm
         elif distribution_type == 'beta':
-            params = [2, 5]
+            params = [2, 10]
             statistics_distribution = stats.beta
         elif distribution_type == 'gamma':
             params = [2]
@@ -159,9 +159,7 @@ def run(M, N, k, t, workload_name='uniform', af_list=[]):
     '''
 
 
-
-
-    def dp_maximize_color_span(k, num_nodes, num_replicas_list):
+    def dp_rainbow(k, num_nodes, num_replicas_list):
         current_node_id = 0
         dp_records = defaultdict(lambda: [])
         for replica_index in range(len(num_replicas_list)):
@@ -169,6 +167,31 @@ def run(M, N, k, t, workload_name='uniform', af_list=[]):
                 # both starts from 1
                 dp_records[current_node_id % num_nodes].append(replica_index)
                 current_node_id += 1
+        return dp_records
+
+    def dp_monochromatic(k, num_nodes, num_replicas_list):
+        sorted_replicas_index = sorted(range(len(num_replicas_list)), reverse=True, key=lambda k: num_replicas_list[k])
+        num_replicas_remaining = copy.copy(num_replicas_list)
+        node_replicas_remaining = [k] * num_nodes
+        dp_records = defaultdict(lambda: [])
+        current_replica_index = 0
+        while sum(node_replicas_remaining) > 0:
+            while num_replicas_remaining[sorted_replicas_index[current_replica_index]] > 0:
+                sorted_node_index = sorted(range(len(node_replicas_remaining)), reverse=True, key=lambda k: node_replicas_remaining[k])
+                # always picks the first one with large remaining slots
+                node_id = sorted_node_index[0]
+                num_replicas_allowed = k - len(dp_records[node_id])
+
+                for _ in range(min(num_replicas_allowed, num_replicas_remaining[sorted_replicas_index[current_replica_index]])):
+                    dp_records[node_id].append(sorted_replicas_index[current_replica_index])
+                    # can be optimized
+                    num_replicas_allowed -= 1
+                    node_replicas_remaining[node_id] -= 1
+                    num_replicas_remaining[sorted_replicas_index[current_replica_index]] -= 1
+                if num_replicas_remaining[sorted_replicas_index[current_replica_index]] <= 0:
+                    current_replica_index += 1
+                if num_replicas_allowed <= 0:
+                    break  # move to the next node
         return dp_records
 
     def dp_maximize_load_balanced(k, num_nodes, num_replicas_list, af_list):
@@ -232,10 +255,16 @@ def run(M, N, k, t, workload_name='uniform', af_list=[]):
     print("-----------------------------------------")
     dp_records = {}
     if t == 'mcs':
-        dp_records = dp_maximize_color_span(k, N, adjusted_num_replicas_list)
+        dp_records = dp_rainbow(k, N, adjusted_num_replicas_list)
     elif t == 'mlb':
         dp_records = dp_maximize_load_balanced(k, N, adjusted_num_replicas_list, af_list)
+    elif t == 'rainbow':
+        dp_records = dp_rainbow(k, N, adjusted_num_replicas_list)
+    elif t == 'monochromatic':
+        dp_records = dp_monochromatic(k, N, adjusted_num_replicas_list)
+
     _print_placement(dp_records, adjusted_num_replicas_list, af_list)
+    return dp_records, adjusted_num_replicas_list
     #print(json.dumps(dp_records, indent=4, sort_keys=True))
 
 

@@ -14,6 +14,7 @@ from elastic.benchmark.workload import Workload, WorkloadConfig, WorkloadExecuti
 from elastic.hpcc import placement
 from elastic.hpcc import roxie
 from elastic.hpcc.service import HPCCService
+from elastic.simulator import dp_simulation
 
 from elastic.hpcc.base import *
 from elastic.util import helper
@@ -103,6 +104,8 @@ class Experiment:
         self.hpcc_service.clean_system()  # to make the same base
         if self.dp is not None:
             roxie.switch_data_placement(self.dp)
+        #import sys
+        #sys.exit(0)
         self.hpcc_service.start()
 
     def post_run(self):
@@ -151,10 +154,12 @@ class Experiment:
             return True
         except Exception as e:
             print("Failed to run the experiment", e)
+            import traceback
+            traceback.print_exc()
         return False
 
 
-def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, timeline_reuse=False, wait_time=60, check_success=True):
+def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, timeline_reuse=False, wait_time=60, check_success=True, overwrite=False):
     for variable_setting in variable_setting_list:
         per_setting = copy.deepcopy(default_setting)
         #print(json.dumps(per_setting.config, indent=4))
@@ -206,48 +211,103 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
             per_setting.set_config('experiment.output_dir', generate_default_output_dir(per_setting, hpcc_cluster, workload_config))
         output_dir = per_setting['experiment.output_dir']
 
+        if (not overwrite) and os.path.exists(output_dir):
+            print("skip experiment:", output_dir)
+            continue
+
         dp_new = None
         access_profile = None
         if per_setting.has_key('experiment.data_placement'):
             data_placement_type, old_locations, access_profile = per_setting['experiment.data_placement']
+            dp_model = per_setting['experiment.dp_model']
             dp_old = placement.DataPlacement.new(old_locations)
-            new_nodes = [n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes]
-            #print("@@", per_setting['experiment.output_dir'])
-            #print('@@ access_profile:', access_profile)
+            #new_nodes = [n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes]
+            old_nodes = sorted(dp_old.nodes)
+            new_nodes = sorted(list(set([n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes]) - set(dp_old.nodes)))
 
-            if data_placement_type == placement.DataPlacementType.complete:
-                dp_new = placement.CompleteDataPlacement.compute_optimal_placement(dp_old, new_nodes)
-                print("Data placement")
-                print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
-            else:
-                access_statistics = placement.PlacementTool.load_statistics(access_profile)
-                node_statistics = placement.PlacementTool.compute_node_statistics(access_statistics)
-                print("Host statistics")
-                print(json.dumps(node_statistics, indent=4, sort_keys=True))
-                if data_placement_type == placement.DataPlacementType.coarse_partial:
-                    dp_new = placement.CoarseGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
-                    print("Data placement")
-                    print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
-                elif data_placement_type == placement.DataPlacementType.fine_partial:
-                    dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement(dp_old, new_nodes, access_statistics)
-                    print("Data placement")
-                    print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
-                elif data_placement_type == placement.DataPlacementType.fine_all:
-                    dp_new = placement.FineGrainedDataPlacement.compute_optimal_placement_complete(dp_old, new_nodes, access_statistics)
-                    print("Data placement")
-                    print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
+            access_statistics = placement.PlacementTool.compute_partition_statistics(placement.PlacementTool.load_statistics(access_profile))
+            coarse_grained = True if data_placement_type == placement.DataPlacementType.coarse_partial else False
+            dp_new = generate_data_placement(old_nodes, new_nodes, old_locations, access_statistics, coarse_grained=coarse_grained, dp_model=dp_model)
+            print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
+            #import sys
+            #sys.exit(0)
 
-        #import sys
-        #sys.exit(0)
         experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=access_profile, dp=dp_new, wait_time=wait_time, check_success=check_success)
         experiment.workload_config = workload_config  # hack
         yield experiment
 
 
-def analyze_timeline(timeline):
-    from collections import defaultdict
-    ds = defaultdict(lambda: 0)
-    for k, vs in timeline.items():
-        for v in vs:
-            ds[v.query_name] += 1
-    print(json.dumps(ds, indent=4))
+def roxie_node_comparator(node_ip):
+    try:
+        return int(node_ip.split('.')[-1])
+    except:
+        pass
+    return node_ip
+
+def roxie_file_comparator(file_name):
+    try:
+        return (int(file_name.split('.')[0].split('_')[-1]), int(file_name.split('.')[-1].split('_')[1]))
+    except:
+        pass
+    return file_name
+
+
+def generate_data_placement(old_nodes, new_nodes, locations, access_statistics, coarse_grained=True, dp_model='rainbow'):
+    # assign node id
+    nodes = sorted(set(old_nodes + new_nodes))  # should not have duplicate nodes
+    #print("nodes:", nodes)
+    # assign partition id -> k=1 or k > 1
+    max_num_partitions = 1
+    if not coarse_grained:
+        max_num_partitions = 1
+        for node in old_nodes:
+            if len(locations[node]) > max_num_partitions:
+                max_num_partitions = len(locations[node])
+    #print("k:", max_num_partitions)
+    #print(json.dumps(locations, indent=4))
+    #print(json.dumps(access_statistics, indent=4))
+    # create access frequency list
+    partition_list = []
+    af_list = []
+    sorted_partition_list = []
+    sorted_af_list = []
+    if max_num_partitions == 1:
+        for node in old_nodes:
+            print(node, sum([(access_statistics[partition] if partition in access_statistics else 0) for partition in locations[node]]))
+            af_list.append(sum([(access_statistics[partition] if partition in access_statistics else 0) for partition in locations[node]]))
+            partition_list.append(node)
+        for node in sorted(partition_list, key=roxie_node_comparator):
+            sorted_partition_list.append(node)
+            sorted_af_list.append(af_list[partition_list.index(node)])
+    else:
+        for partition in sorted([partition for node in locations.keys() for partition in locations[node]]):
+            af_list.append(access_statistics[partition] if partition in access_statistics else 0)
+            partition_list.append(partition)
+        for partition in sorted(partition_list, key=roxie_file_comparator):
+            sorted_partition_list.append(partition)
+            sorted_af_list.append(af_list[partition_list.index(partition)])
+    for i in range(len(sorted_partition_list)):
+        print(sorted_partition_list[i], sorted_af_list[i])
+    M = len(old_nodes)
+    N = len(nodes)
+    k = max_num_partitions
+    t = dp_model
+    dp_records, adjusted_num_replicas_list = dp_simulation.run(M, N, k, t, af_list=sorted_af_list)
+
+    # print(json.dumps(dp_records, indent=4))
+
+    new_locations = {}
+    if max_num_partitions == 1:
+        #print('................')
+        #print(json.dumps(dp_records, indent=4))
+        for node_name in dp_records.keys():
+            new_locations[nodes[int(node_name)]] = []
+            for node_index in dp_records[node_name]:
+                new_locations[nodes[int(node_name)]].extend(locations[nodes[node_index]])
+    else:
+        for node_name in dp_records.keys():
+            new_locations[nodes[int(node_name)]] = []
+            for partition_index in dp_records[node_name]:
+                new_locations[nodes[int(node_name)]].append(sorted_partition_list[partition_index])
+    return placement.DataPlacement(nodes, sorted_partition_list, new_locations)
+

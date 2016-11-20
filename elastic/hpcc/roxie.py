@@ -84,7 +84,9 @@ def switch_data_placement(data_placement, data_dir="/var/lib/HPCCSystems/hpcc-da
     with parallel.CommandAgent(concurrency=8, show_result=False) as agent:
         for node, partition_list in data_placement.locations.items():
             #logger.info("Host: {}".format(node))
-            for partition in partition_list:
+            # remove duplicate partition to support monochromatic
+            #logger.info(partition_list)
+            for partition in set(partition_list):
                 #logger.info("\tpartition={}".format(partition))
                 agent.submit_remote_command(node, "sudo mv {} {}".format(get_hidden_partition(partition), partition), capture=False, silent=True)
 

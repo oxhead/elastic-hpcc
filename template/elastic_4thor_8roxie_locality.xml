@@ -1144,7 +1144,7 @@
                 useHardLink="false"
                 useLogQueue="true"
                 useMemoryMappedIndexes="false"
-                useRemoteResources="false">
+                useRemoteResources="true">
    <RoxieFarmProcess aclName=""
                      listenQueue="200"
                      name="farm1"
