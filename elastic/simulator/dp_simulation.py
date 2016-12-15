@@ -25,7 +25,7 @@ class WorkloadGenerator:
             params = []  # mean, std
             statistics_distribution = stats.norm
         elif distribution_type == 'beta':
-            params = [2, 10]
+            params = [2, 5]
             statistics_distribution = stats.beta
         elif distribution_type == 'gamma':
             params = [2]
