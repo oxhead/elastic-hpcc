@@ -208,7 +208,7 @@ class Workload:
                 apps[app_name] = app
 
         # workload setting
-        application_selection = SelectionModel.new(workload_config.lookup_config("workload.selection"), apps)
+        application_selection = SelectionModel.new(workload_config.lookup_config("workload.selection"), apps, object_type='dict', object_comparator=roxie_application_comparator)
         workload_type = WorkloadType[workload_config.lookup_config('workload.type').lower()]
         num_queries = workload_config.lookup_config('workload.num_queries')
         period = workload_config.lookup_config("workload.period")
@@ -269,8 +269,8 @@ class SelectionModel:
         return rv_p_accumulate
 
     @staticmethod
-    def new(config_object, objects, kind='coarse'):
-        # kind: nature | chunk
+    def new(config_object, objects, object_type='list', object_comparator=None):
+        # object_type: list or dict
         logger = logging.getLogger('.'.join([__name__, SelectionModel.__class__.__name__]))
         #logger.info('Generating distribution')
         logger.debug(config_object)
@@ -287,7 +287,7 @@ class SelectionModel:
             params = []
             statistics_distribution = stats.uniform;
         elif distribution_type == DistributionType.normal:
-            params = []
+            params = [config_object['loc'], config_object['scale']]
             statistics_distribution = stats.norm
         elif distribution_type == DistributionType.exponential:
             params = []
@@ -319,13 +319,15 @@ class SelectionModel:
             return SelectionModel(distribution_type, probability_list, objects, param=params)
         elif kind == 'chunk':
             #print('chunck model..........')
-            num_chunks = int(config_object['num_chunks'])
+            num_chunks = int(config_object['num_chunks']) if object_type == 'list' else len(objects)
             x_min = statistics_distribution.ppf(0.0000001, *params)
             x_max = statistics_distribution.ppf(0.9999999, *params)
             x_list = [x_min + (x_max - x_min) / num_chunks * i for i in range(1, num_chunks + 1)]
             cdf_list = statistics_distribution.cdf(x_list, *params)
             cdf_list = np.append([0], cdf_list)
-            pdf_list = sorted(np.diff(cdf_list), reverse=True)
+            # alway put the first object with higher frequency?? do we need this?
+            #pdf_list = sorted(np.diff(cdf_list), reverse=True)
+            pdf_list = np.diff(cdf_list)
             probability_list = pdf_list
             for i in range(len(probability_list) - 1):
                 probability_list[i + 1] += probability_list[i]
@@ -335,8 +337,15 @@ class SelectionModel:
             #print('before)', cdf_list)
             #reversed_cdf_list = list(reversed([abs(n-1) for n in cdf_list]))
             #print('after)', list(reversed_cdf_list))
-            object_chunks = collection_helper.split_list(objects, num_chunks)
-            return ChunkSelectionModel(distribution_type, probability_list, object_chunks, param=params)
+            if object_type == 'dict':
+                if object_comparator is not None:
+                    return ChunkSelectionModel(distribution_type, probability_list, sorted(objects.keys(), key=object_comparator), objects, actual_objects=objects, param=params)
+                else:
+                    return ChunkSelectionModel(distribution_type, probability_list, sorted(objects.keys()), objects, actual_objects=objects, param=params)
+
+            else:
+                object_chunks = collection_helper.split_list(objects, num_chunks)
+                return ChunkSelectionModel(distribution_type, probability_list, sorted(object_chunks.keys()), object_chunks, param=params)
 
     @staticmethod
     def new_fixed(objects, percentages):
@@ -434,9 +443,10 @@ class SelectionModel:
 
 class ChunkSelectionModel:
 
-    def __init__(self, distribution_type, probability_list, object_records, **kwargs):
+    def __init__(self, distribution_type, probability_list, chunk_keys, object_records, **kwargs):
         self.distribution = distribution_type
         self.probability_list = probability_list
+        self.chunck_keys = chunk_keys
         self.object_records = object_records
         # TODO: not efficient?
         # self.key_list = list(self.objects.keys()) if type(self.objects) is dict else list(range(len(objects)))
@@ -445,8 +455,11 @@ class ChunkSelectionModel:
 
     def select(self):
         chunk_index = self.select_chunk()
-        chunk = self.object_records[chunk_index]
-        return chunk[random.randint(0, len(chunk)-1)]
+        object_record = self.object_records[self.chunck_keys[chunk_index]]
+        if type(object_record) is list:
+            return object_record[random.randint(0, len(object_record)-1)]
+        else:
+            return object_record
 
     def select_chunk(self):
         rv = random.random()
@@ -558,3 +571,11 @@ class RoxieApplication:
 
     def __hash__(self):
         return helper.md5hash(self.__repr__())
+
+
+def roxie_application_comparator(app_name):
+    try:
+        return int(app_name.split('_')[-1])
+    except:
+        pass
+    return app_name

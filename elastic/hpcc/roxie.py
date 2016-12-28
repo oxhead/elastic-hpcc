@@ -41,7 +41,9 @@ def get_workload_distribution(node):
 
 def get_part_access_statistics(node_list):
     with parallel.CommandAgent(concurrency=len(node_list), show_result=False) as agent:
-        grep_cmd = "grep '19CRoxieFetchActivity' /var/log/HPCCSystems/myroxie/roxie.log | grep part | cut -d'=' -f3 | while read line; do echo $line | sed 's/.$//'; done | sort | uniq -c"
+        grep_cmd = "grep '19CRoxieFetchActivity' /var/log/HPCCSystems/myroxie/roxie.log | grep part | cut -d'=' -f3 | while read line; do echo $line; done | sed 's/.$//' | awk '{dups[$1]++} END{for (num in dups) {print dups[num],num}}'"
+        # old implementation, bad performance
+        # grep_cmd = "grep '19CRoxieFetchActivity' /var/log/HPCCSystems/myroxie/roxie.log | grep part | cut -d'=' -f3 | while read line; do echo $line | sed 's/.$//'; done | sort | uniq -c"
         agent.submit_remote_commands(node_list, grep_cmd, cids=[n.get_ip() for n in node_list], capture=True, silent=True)
 
     part_statistics = {}
@@ -59,7 +61,7 @@ def restore_data_placement(nodes, data_dir="/var/lib/HPCCSystems/hpcc-data/roxie
         agent.submit_remote_commands(nodes, cmd, silent=True)
 
 
-def switch_data_placement(data_placement, data_dir="/var/lib/HPCCSystems/hpcc-data/roxie"):
+def switch_data_placement(data_placement, data_dir="/var/lib/HPCCSystems/hpcc-data/roxie", storage_type='local'):
 
     logger = logging.getLogger('.'.join([__name__, "switch_data_placement"]))
     logger.info("Executing data placement")
@@ -76,19 +78,51 @@ def switch_data_placement(data_placement, data_dir="/var/lib/HPCCSystems/hpcc-da
     def get_hidden_partition(partition):
         return os.path.dirname(partition) + "/." + os.path.basename(partition)
 
-    logger.info("Hiding all data files")
-    hide_files(data_placement.locations.keys(), data_dir=data_dir)
-    logger.info("Showing all index files")
-    show_index_files(data_placement.locations.keys(), data_dir=data_dir)
-    logger.info("Showing necessary data files")
-    with parallel.CommandAgent(concurrency=8, show_result=False) as agent:
+    def hide_files_nfs(nodes, data_dir):
+        with parallel.CommandAgent(concurrency=len(nodes), show_result=False) as agent:
+            for node in nodes:
+                node_data_dir = os.path.join(data_dir, node, 'roxie')  # default = /dataset/ip/roxie
+                cmd = "for d in `find " + node_data_dir + " -type d`; do echo $d; ls -F $d | grep -v '[/@=|]$' | sudo xargs -I {} mv $d/{} $d/.{}; done"
+                #execute(cmd)
+                agent.submit_command(cmd)
+
+    def show_index_files_nfs(nodes, data_dir):
+        with parallel.CommandAgent(concurrency=len(nodes), show_result=False) as agent:
+            for node in nodes:
+                node_data_dir = os.path.join(data_dir, node, 'roxie')  # default = /dataset/ip/roxie
+                cmd = "for d in `find " + node_data_dir + " -type d`; do echo $d; ls -a $d | grep '^\.idx' | cut -c 2- | xargs -I {} sudo mv $d/.{} $d/{}; done"
+                #execute(cmd)
+                agent.submit_command(cmd)
+
+    def modify_nfs_path(node_ip, file_path):
+        return os.path.join("/", file_path.split('/')[1], node_ip, *file_path.split('/')[2:])
+
+
+    logger.info("Data storage type is {}".format(storage_type))
+    if storage_type == 'nfs':
+        logger.info("Hiding all data files")
+        hide_files_nfs(data_placement.locations.keys(), data_dir=data_dir)
+        logger.info("Showing all index files")
+        show_index_files_nfs(data_placement.locations.keys(), data_dir=data_dir)
+        logger.info("Showing necessary data files")
         for node, partition_list in data_placement.locations.items():
-            #logger.info("Host: {}".format(node))
-            # remove duplicate partition to support monochromatic
-            #logger.info(partition_list)
             for partition in set(partition_list):
-                #logger.info("\tpartition={}".format(partition))
-                agent.submit_remote_command(node, "sudo mv {} {}".format(get_hidden_partition(partition), partition), capture=False, silent=True)
+                partition_on_nfs = modify_nfs_path(node, partition)
+                execute("sudo mv {} {}".format(get_hidden_partition(partition_on_nfs), partition_on_nfs))
+    else:
+        logger.info("Hiding all data files")
+        hide_files(data_placement.locations.keys(), data_dir=data_dir)
+        logger.info("Showing all index files")
+        show_index_files(data_placement.locations.keys(), data_dir=data_dir)
+        logger.info("Showing necessary data files")
+        with parallel.CommandAgent(concurrency=8, show_result=False) as agent:
+            for node, partition_list in data_placement.locations.items():
+                #logger.info("Host: {}".format(node))
+                # remove duplicate partition to support monochromatic
+                #logger.info(partition_list)
+                for partition in set(partition_list):
+                    #logger.info("\tpartition={}".format(partition))
+                    agent.submit_remote_command(node, "sudo mv {} {}".format(get_hidden_partition(partition), partition), capture=False, silent=True)
 
 
 

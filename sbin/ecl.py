@@ -12,6 +12,13 @@ from cli import get_esp
 from cli import get_roxie
 from cli import get_system_dir
 
+
+def convert_to_query_text(query_list):
+    if query_list is None or len(query_list) == 0:
+        return ""
+    query_text = " ".join(["-X{}={}".format(k, v) for k, v in query_list])
+    return query_text
+
 def convert_to_query_xml(query_list):
     if query_list is None or len(query_list) == 0:
         return ""
@@ -35,7 +42,7 @@ def extract_wuid(output, call_type):
     return None
 
 
-def _call(ctx, target_cluster, ecl, published_query, base_dir, query_input, wait, job, wait_until_complete):
+def _call(ctx, target_cluster, ecl, published_query, base_dir, query_input, parameter_input, wait, job, wait_until_complete):
     if wait_until_complete:
         wait = 1000 #milliseconds
     eclagent_host = get_esp(ctx)
@@ -52,9 +59,10 @@ def _call(ctx, target_cluster, ecl, published_query, base_dir, query_input, wait
 
     job_name = "{}_{}".format(os.path.splitext(os.path.basename(call_target))[0].lower(), uuid.uuid4()) if job is None else job
     # -v for getting wuid
-    cmd = '{}/bin/ecl run -v --server {} --target {} --wait={} --name={} {} {}'.format(get_system_dir(ctx), eclagent_host, target_cluster, wait, job_name, convert_to_query_xml(query_input), call_target)
+    cmd = '{}/bin/ecl run -v --server {} --target {} --wait={} --name={} {} {} {}'.format(get_system_dir(ctx), eclagent_host, target_cluster, wait, job_name, convert_to_query_xml(query_input), convert_to_query_text(parameter_input), call_target)
     if program_dir is not None:
         cmd = 'cd {}; '.format(program_dir) + cmd
+    print(cmd)
     output = execute(cmd, silent=True, capture=True)
     if ctx.obj['show']:
         print(output)
@@ -76,11 +84,14 @@ def wait_for_completion(ctx, wuid):
         with CaptureOutput() as output:
             (wuid, job_status) = lookup_status(ctx, wuid, type='wuid')
             # completed, compiled and failed?
-            if 'ed' in job_status:
+            #if 'ed' in job_status:
+            # haven't check yet and need to confirm later?
+            if 'ed' in job_status and (not 'blocked' in job_status) and (not 'submitted' in job_status):
                 job_running = False
         if job_running:
             time.sleep(1)
     return lookup_status(ctx, wuid, type='wuid')
+
 
 @cli.command(context_settings=dict(ignore_unknown_options=True,))
 @click.option('--target', default='thor', type=click.Choice(['thor', 'roxie']))
@@ -88,12 +99,13 @@ def wait_for_completion(ctx, wuid):
 @click.option('--name', help='The name of the published query')
 @click.option('--dir', '-d', type=click.Path(exists=True, resolve_path=True))
 @click.option('--input', '-i', multiple=True, type=(str, str))
+@click.option('--parameter', '-p', multiple=True, type=(str, str))
 @click.option('--wait', type=int, default=30000)
 @click.option('--job')
 @click.option('--wait_until_complete', is_flag=True)
 @click.pass_context
-def run(ctx, target, ecl, name, dir, input, wait, job, wait_until_complete):
-    return _call(ctx, target, ecl, name, dir, input, wait, job, wait_until_complete)
+def run(ctx, target, ecl, name, dir, input, parameter, wait, job, wait_until_complete):
+    return _call(ctx, target, ecl, name, dir, input, parameter, wait, job, wait_until_complete)
 
 @cli.command()
 @click.argument('name')

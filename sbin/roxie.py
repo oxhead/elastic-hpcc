@@ -19,17 +19,19 @@ from ecl import run as ecl_run
 
 from elastic.base import Node
 from elastic.hpcc import roxie as roxie_util
+from elastic.benchmark import query as roxie_query
 
 
 @cli.command()
 @click.option('--ecl', type=click.Path(exists=True, resolve_path=True))
 @click.option('--dir', '-d', type=click.Path(exists=True, resolve_path=True))
 @click.option('--input', '-i', multiple=True, type=(str, str))
+@click.option('--parameter', '-p', multiple=True, type=(str, str))
 @click.option('--wait', type=int, default=30000)
 @click.option('--job')
 @click.option('--wait_until_complete', is_flag=True)
 @click.pass_context
-def run(ctx, ecl, dir, input, wait, job, wait_until_complete):
+def run(ctx, ecl, dir, input, parameter, wait, job, wait_until_complete):
     ctx.forward(ecl_run, target='roxie')
 
 
@@ -65,6 +67,15 @@ def unpublish(ctx, name):
 @click.pass_context
 def query(ctx, name, input, job, wait, wait_until_complete):
     return ctx.forward(ecl_run, name=name, target='roxie')
+
+
+@cli.command()
+@click.argument('host')
+@click.argument('name')
+@click.option('--input', '-i', type=(str, str))
+@click.pass_context
+def http_query(ctx, host, name, input):
+    return roxie_query.run_query(roxie_query.new_session(), name, host, input[0], input[1], timeout=10)
 
 
 @cli.command()

@@ -133,3 +133,29 @@ def cmd(ctx, cmdline):
     with parallel.CommandAgent(show_result=False) as agent:
         for host in ctx.obj['host_list']:
             agent.submit_remote_command(host, cmdline, ignore_known_hosts=True, check=False)
+
+
+
+@cli.command()
+@click.pass_context
+def secure_sshd(ctx):
+    rules = '''sshd : localhost : allow
+sshd : 192.168.0. : allow
+sshd : 10.25. : allow
+sshd : 174.99.121. : allow
+sshd : 152.14. : allow
+sshd : ALL : deny
+'''
+
+    file_path = '/tmp/hosts.allow'
+    with open(file_path, 'w') as f:
+        f.write(rules)
+    with parallel.CommandAgent(show_result=False) as agent:
+        for host in ctx.obj['host_list']:
+            agent.submit_command("scp {} {}:{}".format(file_path, host, file_path))
+    with parallel.CommandAgent(show_result=False) as agent:
+        for host in ctx.obj['host_list']:
+            agent.submit_remote_command(host, "sudo cp {} /etc/hosts.allow".format(file_path))
+    with parallel.CommandAgent(show_result=False) as agent:
+        for host in ctx.obj['host_list']:
+            agent.submit_remote_command(host, 'sudo service sshd reload', ignore_known_hosts=True)

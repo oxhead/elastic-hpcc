@@ -40,3 +40,6 @@ sudo yum -y install python34-devel
 # nodejs for packaging HPCC
 curl --silent --location https://rpm.nodesource.com/setup | sudo bash -
 sudo yum install -y gcc-c++ make && sudo yum install -y nodejs
+
+# required for lxml
+yum install libxslt-devel libxml2-devel

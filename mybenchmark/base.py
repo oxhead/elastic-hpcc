@@ -63,8 +63,8 @@ class WorkloadTimelineManager:
         md5_key = hashlib.md5(json.dumps(workload_config.config, sort_keys=True).encode()).hexdigest()
         return os.path.join(self.store_dir, md5_key)
 
-    def cache(self, workload_config, workload, update=False):
-        cache_path = self._generate_cache_path(workload_config)
+    def cache(self, workload_config, workload, update=False, name=None):
+        cache_path = self._generate_cache_path(workload_config) if name is None else os.path.join(self.store_dir, name)
         if (not update) and (os.path.exists(cache_path)):
             print("loading workload timeline from {}".format(cache_path))
             return WorkloadTimelineManager.load_timeline(cache_path)
@@ -86,7 +86,7 @@ class ExperimentConfig(BaseConfig):
 
 
 class Experiment:
-    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=None, dp=None, wait_time=60, check_success=True):
+    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=None, dp=None, wait_time=60, check_success=True, data_dir='/dataset', storage_type='nfs', restart_hpcc=False):
         self.experiment_id = experiment_id
         self.benchmark_config = benchmark_config
         self.hpcc_cluster = hpcc_cluster
@@ -97,15 +97,22 @@ class Experiment:
         self.dp = dp
         self.wait_time = wait_time
         self.check_success = check_success
+        self.data_dir = data_dir
+        self.storage_type = storage_type
+        self.restart_hpcc = restart_hpcc
 
     def pre_run(self):
-        self.hpcc_service.stop()
-        self.hpcc_service.clear_log()  # to get the right counter
+        if self.restart_hpcc:
+            self.hpcc_service.stop()
+            self.hpcc_service.clear_log()  # to get the right counter
+        else:
+            self.hpcc_service.truncate_log()  # remove all logs
         self.hpcc_service.clean_system()  # to make the same base
         if self.dp is not None:
-            roxie.switch_data_placement(self.dp)
+            roxie.switch_data_placement(self.dp, data_dir=self.data_dir, storage_type=self.storage_type)
         #import sys
         #sys.exit(0)
+        # doesn't harn so just start the service?
         self.hpcc_service.start()
 
     def post_run(self):
@@ -159,7 +166,7 @@ class Experiment:
         return False
 
 
-def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, timeline_reuse=False, wait_time=60, check_success=True, overwrite=False):
+def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, timeline_reuse=False, wait_time=60, check_success=True, overwrite=False, restart_hpcc=False):
     for variable_setting in variable_setting_list:
         per_setting = copy.deepcopy(default_setting)
         #print(json.dumps(per_setting.config, indent=4))
@@ -182,13 +189,12 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
             workload_config.set_config('workload.applications', app_config)
 
         print(json.dumps(workload_config.config, indent=4))
-        #import sys
-        #sys.exit(0)
 
         workload = Workload.from_config(workload_config)
         workload_timeline_dir = os.path.join(experiment_dir, '.workload_timeline') if experiment_dir else '.workload_timeline'
         workload_timeline_manager = WorkloadTimelineManager(store_dir=workload_timeline_dir)
-        workload_timeline = workload_timeline_manager.cache(workload_config, workload, update=not timeline_reuse)
+        workload_name = per_setting['workload.name'] if per_setting.has_key('workload.name') else None
+        workload_timeline = workload_timeline_manager.cache(workload_config, workload, update=not timeline_reuse, name=workload_name)
         #for k, vs in workload_timeline.timeline.items():
         #    for v in vs:
         #        print(v.wid, v.query_name, v.key)
@@ -228,11 +234,13 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
             access_statistics = placement.PlacementTool.compute_partition_statistics(placement.PlacementTool.load_statistics(access_profile))
             coarse_grained = True if data_placement_type == placement.DataPlacementType.coarse_partial else False
             dp_new = generate_data_placement(old_nodes, new_nodes, old_locations, access_statistics, coarse_grained=coarse_grained, dp_model=dp_model)
-            print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
+            #print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
             #import sys
             #sys.exit(0)
 
-        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=access_profile, dp=dp_new, wait_time=wait_time, check_success=check_success)
+        data_dir = per_setting['experiment.dataset_dir'] if per_setting.has_key('experiment.dataset_dir') else '/dataset'
+        storage_type = per_setting['experiment.storage_type'] if per_setting.has_key('experiment.storage_type') else 'nfs'
+        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=access_profile, dp=dp_new, wait_time=wait_time, check_success=check_success, data_dir=data_dir, storage_type=storage_type, restart_hpcc=restart_hpcc)
         experiment.workload_config = workload_config  # hack
         yield experiment
 
@@ -311,3 +319,39 @@ def generate_data_placement(old_nodes, new_nodes, locations, access_statistics, 
                 new_locations[nodes[int(node_name)]].append(sorted_partition_list[partition_index])
     return placement.DataPlacement(nodes, sorted_partition_list, new_locations)
 
+
+def generate_partition_locations(node_list, num_partitions, partition_name_template):
+    partition_locations = {}
+    for node in node_list:
+        partition_locations[node] = []
+    num_partitions_per_node = int(num_partitions / len(node_list))
+    for i in range(len(node_list)):
+        node = node_list[i]
+        for j in range(1, num_partitions_per_node+1):
+            partition_id = num_partitions_per_node * i + j
+            partition_locations[node].append(partition_name_template.format(partition_id))
+    return partition_locations
+
+
+def analyze_timeline(timeline):
+    distribution_records = {}
+    num_partitions = 1024
+    num_hosts = 4
+    for i in range(1, num_partitions + 1):
+        distribution_records[i] = 0
+
+    for t, items in timeline.items():
+        for item in items:
+            app_id = int(item.query_name.split('_')[-1])
+            distribution_records[app_id] += 1
+            # print(t, item.wid, item.endpoint, item.query_name, item.query_key, item.key)
+
+    for i in range(1, num_partitions + 1):
+        print('P{}'.format(i), distribution_records[i])
+
+    num_partitions_per_host = int(num_partitions / num_hosts)
+    for i in range(num_hosts):
+        count = 0
+        for j in range(1, num_partitions_per_host + 1):
+            count += distribution_records[i * num_partitions_per_host + j]
+        print('host_{}:'.format(i+1), count)

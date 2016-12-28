@@ -82,6 +82,14 @@ def clear_log(ctx):
     with parallel.CommandAgent(show_result=False) as agent:
         agent.submit_remote_commands(ctx.obj['host_list'], "sudo rm -rf /var/log/HPCCSystems/*", check=False, silent=True)
 
+
+@cli.command()
+@click.pass_context
+def truncate_log(ctx):
+    with parallel.CommandAgent(show_result=False) as agent:
+        agent.submit_remote_commands(ctx.obj['host_list'], "sudo truncate /var/log/HPCCSystems/roxie.log --size 0", check=False, silent=True)
+
+
 @cli.command()
 @click.pass_context
 def clear_system(ctx):
@@ -322,3 +330,16 @@ def fix_coredump(ctx):
     for host in ctx.obj['host_list']:
         roxie_config = "/opt/HPCCSystems/bin/init_roxie"
         execute('ssh -t {} sudo sed -i "s/^ulimit/#ulimit/" {}'.format(host, roxie_config))
+
+
+@cli.command()
+@click.pass_context
+def increase_start_timeout(ctx):
+    """This changes the defaul value in hpcc_common
+
+    This disable core dump in Roxie
+    """
+    for host in ctx.obj['host_list']:
+        hpcc_config = "/opt/HPCCSystems/etc/init.d/hpcc_common"
+        execute('ssh -t {} sudo sed -i "s/WAITTIME=120/WAITTIME=500/" {}'.format(host, hpcc_config))
+

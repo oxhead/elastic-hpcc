@@ -47,7 +47,8 @@ def run_query(session, query_name, endpoint, query_key, key, timeout):
     }
     payload = {
         query_name: {
-            query_key: key
+            query_key: key,
+            #'num': 1000  ## for higher load testing??
         }
     }
     #req = requests.Request('POST', endpoint, headers=headers, data=json.dumps(payload))

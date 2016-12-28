@@ -13,6 +13,7 @@ import yaml
 
 from elastic import base
 from elastic.util.monitoringtool import Monitor
+from elastic.util.monitoringtool import CacheMonitor
 from elastic.util import parallel
 
 
@@ -26,6 +27,7 @@ class Benchmark:
         self.config_output_dir = os.path.join(self.output_dir, "config")
         self.kwargs = kwargs
         self.monitor = Monitor(self.cluster, self.monitoring_output_dir)
+        self.cache_monitor = CacheMonitor(self.cluster, self.monitoring_output_dir)
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
 
     def pre_run(self):
@@ -70,7 +72,9 @@ class Benchmark:
         self.pre_run()
         self.assert_service_status()
         self.monitor.start()
+        self.cache_monitor.start()
         self.run_benchmark()
+        self.cache_monitor.stop()
         self.monitor.stop()
         self.post_run()
         self.time_end = int(time.time())

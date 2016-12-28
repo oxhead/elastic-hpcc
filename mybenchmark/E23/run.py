@@ -45,7 +45,7 @@ def main(run_id, dp_type, dp_model, selective_run, check_success):
     output_dir = os.path.join(
         default_setting['experiment.result_dir'],
         default_setting['experiment.id'],
-        "{}_{}".format(data_placement_type, dp_model)
+        "{}-{}".format(data_placement_type, dp_model)
     )
 
     #####################################
@@ -73,9 +73,15 @@ def main(run_id, dp_type, dp_model, selective_run, check_success):
 
     workload_distribution_list = {
         "beta": {"type": "beta", "alpha": 2, "beta": 5},
+        "beta-high": {"type": "beta", "alpha": 2, "beta": 10},
+        "beta-low": {"type": "beta", "alpha": 2, "beta": 2},
         "gamma": {"type": "gamma", "shape": 2},
+        "gamma-high": {"type": "gamma", "shape": 1},
+        "gamma-low": {"type": "gamma", "shape": 10},
         "normal": {"type": "normal"},
         "powerlaw": {"type": "powerlaw", "shape": 5},
+        "powerlaw-high": {"type": "powerlaw", "shape": 10},
+        "powerlaw-low": {"type": "powerlaw", "shape": 2},
         "uniform": {"type": "uniform"},
     }
 
@@ -93,6 +99,8 @@ def main(run_id, dp_type, dp_model, selective_run, check_success):
         #if 'fine' in data_placement_type:
         #    if not workload_name == data_placement_name:
         #        continue
+        if data_placement_name not in workload_name:
+            continue
         if selective_run:
             if data_placement_type == 'coarse':
                 if not data_placement_name == "complete":
