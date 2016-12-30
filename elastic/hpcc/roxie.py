@@ -28,14 +28,21 @@ def reset_metrics(node):
 
 def get_workload_distribution(node):
     grep_cmd = "grep '{}' /var/log/HPCCSystems/myroxie/roxie.log | wc -l"
-    index_cmd = RemoteCommand(node.get_ip(), grep_cmd.format("23CRoxieIndexReadActivity"), capture=True, silent=True)
-    fetch_cmd = RemoteCommand(node.get_ip(), grep_cmd.format("19CRoxieFetchActivity"), capture=True, silent=True)
+    index_cmd = RemoteCommand(node.get_ip(), grep_cmd.format("=> kind=23CRoxieIndexReadActivity"), capture=True, silent=True)
+    fetch_cmd = RemoteCommand(node.get_ip(), grep_cmd.format("=> kind=19CRoxieFetchActivity"), capture=True, silent=True)
+    index_attempt_cmd = RemoteCommand(node.get_ip(), grep_cmd.format("-> kind=23CRoxieIndexReadActivity"), capture=True, silent=True)
+    fetch_attempt_cmd = RemoteCommand(node.get_ip(), grep_cmd.format("-> kind=19CRoxieFetchActivity"), capture=True, silent=True)
+
     index_cmd.start()
     fetch_cmd.start()
+    index_attempt_cmd.start()
+    fetch_attempt_cmd.start()
 
     return {
         "IndexReadActivity": index_cmd.output,
         "FetchActivity": fetch_cmd.output,
+        "IndexReadActivityAttempt": index_attempt_cmd.output,
+        "FetchActivityAttempt": fetch_attempt_cmd.output,
     }
 
 

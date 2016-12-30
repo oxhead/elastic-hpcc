@@ -36,6 +36,7 @@ class Benchmark:
         ntp_servers = ['152.1.227.236', '152.1.227.237', '152.1.227.238']
         with parallel.CommandAgent(concurrency=len(self.cluster.get_nodes()), show_result=False) as agent:
             agent.submit_remote_commands(self.cluster.get_nodes(), 'sudo ntpdate -u {}'.format(random.choice(ntp_servers)), silent=True)
+        self.logger.info("completed time synchronization")
 
     def post_run(self):
         raise NotImplementedError()

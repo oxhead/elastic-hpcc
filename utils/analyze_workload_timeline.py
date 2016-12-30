@@ -15,8 +15,8 @@ def main(timeline_file):
         for item in items:
             app_id = int(item.query_name.split('_')[-1])
             distribution_records[app_id] += 1
-            #print(t, item.wid, item.endpoint, item.query_name, item.query_key, item.key)
-
+            print(t, item.wid, item.endpoint, item.query_name, item.query_key, item.key)
+    return
     for i in range(1, num_partitions+1):
         print('P{}'.format(i), distribution_records[i])
 

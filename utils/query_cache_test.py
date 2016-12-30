@@ -10,7 +10,7 @@ import gevent.queue
 from gevent.lock import Semaphore
 
 
-num_workers = 60
+num_workers = 16
 worker_pool = gevent.pool.Pool(num_workers)
 worker_queue = gevent.queue.Queue()
 mylock = Semaphore()
@@ -30,13 +30,14 @@ def run():
         "http://10.25.2.140:9876",
     ]
 
-    endpoints = endpoints[:1]
+    endpoints = endpoints[4:5]
 
     num_queries = num_workers * 100
 
     key_list = open('/home/chsu6/elastic-hpcc/benchmark/dataset/firstname_list_1085.txt', 'r').readlines()
 
     for app_id in range(1, 2):
+    #for app_id in range(1022, 1023):
         query_name = "sequential_search_firstname_{}".format(app_id)
         query_key = 'firstname'
         for key_index in range(len(key_list)):
@@ -48,15 +49,17 @@ def run():
 
 
     print(len(worker_queue))
-    for i in range(num_workers):
-        worker_pool.spawn(worker, i)
 
-    worker_pool.join()
+    with helper.Timer() as t:
+        for i in range(num_workers):
+            worker_pool.spawn(worker, i)
+        worker_pool.join()
 
     count_success = sum(results.values())
     print('Success:', count_success)
     print('Failure:', len(results) - count_success)
-
+    print('Average Time:', sum(elapsed_time_records.values()) / len(elapsed_time_records))
+    print('Elapsed Time:', t.elapsed)
     print('Complete stress testing')
 
 

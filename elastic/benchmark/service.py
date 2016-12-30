@@ -1,6 +1,7 @@
 import logging
 import time
 import random
+import json
 
 from elastic.util import parallel
 from elastic.benchmark.workload import Workload, WorkloadExecutionTimeline
@@ -52,6 +53,7 @@ class BenchmarkService:
         benchmark_nodes = [self.config.get_controller()] + self.config.get_drivers()
         with parallel.CommandAgent(concurrency=len(benchmark_nodes), show_result=False) as agent:
             agent.submit_remote_commands(benchmark_nodes, 'sudo ntpdate -u {}'.format(random.choice(ntp_servers)), silent=True)
+        self.logger.info("complete time synchronization")
 
         with parallel.CommandAgent(show_result=True) as agent:
             # TODO: a better way? Should not use fixed directory
@@ -124,3 +126,7 @@ class BenchmarkService:
 
     def get_workload_timeline_failure(self, workload_id):
         return self.commander.workload_timeline_failure(workload_id)
+
+    def upload_routing_table(self, routing_table):
+        self.logger.debug(json.dumps(routing_table, indent=4))
+        return self.commander.routing_table_upload(routing_table)

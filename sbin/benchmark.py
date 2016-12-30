@@ -169,3 +169,15 @@ def run(ctx, config, output_dir):
     bm = RoxieBenchmark(hpcc_cluster, benchmark_config, workload_timeline, output_dir=output_dir)
     bm.run()
 
+
+@cli.command()
+@click.pass_context
+def upload_routing_table(ctx):
+    routing_table = {
+        'app_1': ['http://node1', 'http://node2'],
+        'app_2': ['http://node3'],
+        'app_3': [],
+    }
+    benchmark_service = BenchmarkService.new(ctx.obj['config'])
+    benchmark_service.upload_routing_table(routing_table)
+

@@ -4,6 +4,7 @@ import time
 import signal
 import sys
 import logging
+import json
 
 import gevent
 import gevent.pool
@@ -26,6 +27,7 @@ class BenchmarkConfig(config.BaseConfig):
 
     DRIVER_NUM_WORKER = "driver.num_workers"
     DRIVER_QUERY_TIMEOUT = "driver.query_timeout"
+    DRIVER_MANUAL_ROUTING = "driver.manual_routing"
 
     WORKLOAD_NUM_QUERIES = "workload.num_queries"
     WORKLOAD_APPLICATIONS = "workload.applications"
@@ -37,10 +39,12 @@ class SendProtocolHeader(Enum):
     admin_status = 2
     admin_echo = 3
     admin_update_workload = 4
+    admin_update_routing_table = 5
 
     membership_heartbeat = 11
     membership_register = 12
     membership_ready = 13
+    membership_retrieve_routing_table = 14
 
     workload_submit = 21
     workload_status = 22
@@ -51,6 +55,8 @@ class SendProtocolHeader(Enum):
     workload_download = 27
 
     report_done = 31
+
+    routing_table_upload = 41
 
 
 class ReceiveProtocolHeader(Enum):
@@ -213,42 +219,58 @@ class BenchmarkController(BenchmarkNode):
         def __init__(self, controller):
             self.logger = logging.getLogger(__name__)
             self.controller = controller
-            self.router = {
-                SendProtocolHeader.membership_register: self.register,
-                SendProtocolHeader.membership_heartbeat: self.heartbeat,
-                SendProtocolHeader.membership_ready: self.ready,
-                SendProtocolHeader.admin_status: self.status,
-                SendProtocolHeader.admin_stop: self.stop,
-                SendProtocolHeader.workload_submit: self.workload_submit,
-                SendProtocolHeader.workload_report: self.workload_report,
-                SendProtocolHeader.workload_timeline_completion: self.workload_timeline_completion,
-                SendProtocolHeader.workload_timeline_failure: self.workload_timeline_failure,
-                SendProtocolHeader.workload_statistics: self.workload_statistics,
-                SendProtocolHeader.workload_status: self.workload_status,
-            }
+            self.logger.info("[CommandReceiverProtocol] initing...")
+            try:
+                self.router = {
+                    SendProtocolHeader.membership_register: self.register,
+                    SendProtocolHeader.membership_heartbeat: self.heartbeat,
+                    SendProtocolHeader.membership_ready: self.ready,
+                    SendProtocolHeader.membership_retrieve_routing_table: self.retrieve_routing_table,
+                    SendProtocolHeader.admin_status: self.status,
+                    SendProtocolHeader.admin_stop: self.stop,
+                    SendProtocolHeader.workload_submit: self.workload_submit,
+                    SendProtocolHeader.workload_report: self.workload_report,
+                    SendProtocolHeader.workload_timeline_completion: self.workload_timeline_completion,
+                    SendProtocolHeader.workload_timeline_failure: self.workload_timeline_failure,
+                    SendProtocolHeader.workload_statistics: self.workload_statistics,
+                    SendProtocolHeader.workload_status: self.workload_status,
+                    SendProtocolHeader.routing_table_upload: self.routing_table_upload,
+                }
+            except Exception as e:
+                self.logger.exception("failed to initialize the router mapping")
+                import traceback
+                traceback.print_exc()
+            self.logger.info("[CommandReceiverProtocol] done...")
 
         def process(self):
+            #self.logger.info("commander is waiting for command")
             cmd_protocol = self.controller.commander_socket.recv_pyobj()
-            print("cmd=", cmd_protocol.header)
-            print("payload=", cmd_protocol.payloads)
+            #self.logger.info("cmd=", cmd_protocol.header)
+            #self.logger.info("payload=", cmd_protocol.payloads)
             reply_protocol = None
             try:
                 result = self.router[cmd_protocol.header](cmd_protocol.payloads)
-                print("result=", result)
+                #self.logger.info("result=", result)
                 reply_protocol = BenchmarkProtocol(ReceiveProtocolHeader.successful, result)
             except Exception as e:
+                self.logger.exception('Failed to process command')
                 import traceback
                 traceback.print_exc()
                 reply_protocol = BenchmarkProtocol(ReceiveProtocolHeader.failed)
             self.controller.commander_socket.send_pyobj(reply_protocol)
 
         def register(self, param):
+            self.logger.info("# register...")
             self.controller.started_drivers += 1
             return str(self.controller.started_drivers)
 
         def ready(self, param):
             print("@ report ready")
             self.controller.ready_drivers += 1
+
+        def retrieve_routing_table(self, param):
+            self.logger.info("# retrieve_routing_table")
+            return self.controller.routing_table
 
         def heartbeat(self, driver_id):
             # print("received heartbeat from ", driver)
@@ -262,6 +284,12 @@ class BenchmarkController(BenchmarkNode):
             self.controller.manager_publisher.send_pyobj(stop_protocol)
             gevent.spawn_later(1, self.controller.stop)
 
+        def routing_table_upload(self, routing_table):
+            self.logger.info("@ routing table=%s", json.dumps(routing_table, indent=4))
+            self.controller.routing_table = routing_table
+            # sync with all driver nodes
+            self.controller.manager_publisher.send_pyobj(BenchmarkProtocol(SendProtocolHeader.admin_update_routing_table))
+
         def workload_submit(self, workload):
             self.logger.info("@ workload=%s", workload)
             if (self.controller.current_workload_record is not None) and (not self.controller.current_workload_record.is_completed()):
@@ -269,6 +297,7 @@ class BenchmarkController(BenchmarkNode):
             new_workload_id = len(self.controller.workload_db)
             self.controller.current_workload_record = BenchmarkController.WorkloadRecord(new_workload_id, workload)
             self.controller.workload_db[str(new_workload_id)] = self.controller.current_workload_record
+            # here sync with all driver nodes
             echo_protocol = BenchmarkProtocol(SendProtocolHeader.admin_echo)
             self.controller.manager_publisher.send_pyobj(echo_protocol)
             self.controller.runner_group.spawn(self.controller.dispatcher)
@@ -301,6 +330,7 @@ class BenchmarkController(BenchmarkNode):
         self.job_queue_port = self.config.lookup_config(BenchmarkConfig.CONTROLLER_JOB_QUEUE_PORT)
         self.result_queue_port = self.config.lookup_config(BenchmarkConfig.CONTROLLER_REPORT_QUEUE_PORT)
         self.node_status_record = BenchmarkController.NodeStatusRecord()
+        self.routing_table = {}
 
         self.ready_drivers = 0
         self.started_drivers = 0
@@ -315,6 +345,8 @@ class BenchmarkController(BenchmarkNode):
         self.runner_group.spawn(self.commander)
         # self.runner_group.spawn(self.manager)
         self.runner_group.spawn(self.collector)
+
+        self.logger.info("Controller started")
 
         self.runner_group.join()
 
@@ -333,6 +365,7 @@ class BenchmarkController(BenchmarkNode):
 
         command_protocol = BenchmarkController.CommandReceiverProtocol(self)
 
+        self.logger.info("completed the commander initialization")
         while True:
             command_protocol.process()
 
@@ -384,9 +417,14 @@ class BenchmarkDriver(BenchmarkNode):
         self.logger.info("Driver initing")
         self.num_workers = self.config.lookup_config(BenchmarkConfig.DRIVER_NUM_WORKER)
         self.query_timeout = self.config.lookup_config(BenchmarkConfig.DRIVER_QUERY_TIMEOUT, 30)
+        self.manual_routing_enabled = self.config.lookup_config(BenchmarkConfig.DRIVER_MANUAL_ROUTING, False)
+        self.logger.info("manual_routing_enabled:", self.manual_routing_enabled)
         self.worker_pool = gevent.pool.Pool(self.num_workers)
         self.worker_queue = gevent.queue.Queue()
         self.workload = None
+        self.routing_table = {}
+        self.routing_table_indexer = {}
+        self.routing_table_lock = BoundedSemaphore(1)
 
     def start(self):
         self.logger.info("Driver starting")
@@ -405,7 +443,9 @@ class BenchmarkDriver(BenchmarkNode):
         self.runner_group.spawn(self.monitor)
         self.runner_group.spawn(self.heartbeater)
 
+        self.logger.info("Driver started")
         self.runner_group.join()
+
 
     def stop(self):
         self.worker_pool.kill()
@@ -420,6 +460,14 @@ class BenchmarkDriver(BenchmarkNode):
 
     def _register(self):
         self.driver_id = BenchmarkCommander(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT)).register()
+
+    def _retrieve_routing_table(self):
+        self.logger.info('retrieving routing table')
+        self.routing_table = BenchmarkCommander(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT)).retrieve_routing_table()
+        self.logger.info('updated routing table: {}'.format(len(self.routing_table)))
+        self.routing_table_indexer = {}
+        for query_name, endpoints in self.routing_table.items():
+            self.routing_table_indexer[query_name] = 0
 
     def heartbeater(self):
         self.heartbeater_socket = self.context.socket(zmq.REQ)
@@ -444,6 +492,8 @@ class BenchmarkDriver(BenchmarkNode):
                 self.update_workload(cmd_protocol.payloads)
             elif cmd_protocol.header is SendProtocolHeader.admin_echo:
                 self.echo()
+            elif cmd_protocol.header is SendProtocolHeader.admin_update_routing_table:
+                self._retrieve_routing_table()
 
     def retriever(self):
         self.receiver = self.context.socket(zmq.PULL)
@@ -453,7 +503,7 @@ class BenchmarkDriver(BenchmarkNode):
             #if self.worker_queue.qsize() > self.worker_pool.size * 10:
             #    self.logger.info("@ too much job, yield to others")
             #    gevent.sleep(1)
-            self.logger.info("waiting for message")
+            #self.logger.info("waiting for message")
             workload_item = self.receiver.recv_pyobj()
             # dirty hack
             workload_item.queue_timestamp = time.time()
@@ -467,10 +517,29 @@ class BenchmarkDriver(BenchmarkNode):
             worker_item = self.worker_queue.get()
             self.logger.info("idle workers: {}, queue lengths: {}".format(self.worker_pool.free_count(), self.worker_queue.qsize()))
             self.logger.info("worker {} is processing roxie query {}".format(worker_id, worker_item.wid))
+            if self.manual_routing_enabled:
+                try:
+                    assigned_endpoint = self._select_endpoint(worker_item.query_name)
+                    self.logger.info('from {} to {}'.format(worker_item.endpoint, assigned_endpoint))
+                    worker_item.endpoint = assigned_endpoint
+                except:
+                    self.logger.exception('unable to select endpoint')
+            self.logger.info(worker_item.endpoint, worker_item.query_name, worker_item.query_key, worker_item.key)
             start_timestamp = time.time()
+            # Hack to add routing table support
+            # need a global index to do round-robin selection
+
             success, output_size, status_code, exception_description = query.execute_workload_item(session, worker_item, timeout=self.query_timeout)
             finish_timestamp = time.time()
             reporter_procotol.report(worker_item.wid, worker_item.queue_timestamp, start_timestamp, finish_timestamp, success, output_size, status_code, exception_description)
+
+    def _select_endpoint(self, query_name):
+        self.routing_table_lock.acquire()
+        self.logger.info('q={}, i={}, e={}'.format(query_name, self.routing_table_indexer[query_name], self.routing_table[query_name]))
+        endpoint = self.routing_table[query_name][self.routing_table_indexer[query_name] % len(self.routing_table[query_name])]
+        self.routing_table_indexer[query_name] += 1
+        self.routing_table_lock.release()
+        return endpoint
 
 
 class BenchmarkReporterProtocol():
@@ -503,8 +572,8 @@ class BenchmarkSenderProtocol:
 
     def _send(self, header, param=None):
         request_protocol = BenchmarkProtocol(header, param)
-        self.logger.debug(header)
-        self.logger.debug(param)
+        #self.logger.info(header)
+        #self.logger.info(param)
         self.commander_socket.send_pyobj(request_protocol)
         reply_protocol = self.commander_socket.recv_pyobj()
         if reply_protocol.header is not ReceiveProtocolHeader.successful:
@@ -515,6 +584,11 @@ class BenchmarkSenderProtocol:
         driver_id = self._send(SendProtocolHeader.membership_register)
         self.logger.info("registered driver id={}".format(driver_id))
         return driver_id
+
+    def retrieve_routing_table(self):
+        routing_table = self._send(SendProtocolHeader.membership_retrieve_routing_table)
+        self.logger.info("routing table size={}".format(len(routing_table)))
+        return routing_table
 
     def ready(self, driver_id):
         self._send(SendProtocolHeader.membership_ready, driver_id)
@@ -527,6 +601,10 @@ class BenchmarkSenderProtocol:
 
     def stop(self):
         self._send(SendProtocolHeader.admin_stop)
+
+    def routing_table_upload(self, routing_table):
+        self.logger.info("upload routing table")
+        return self._send(SendProtocolHeader.routing_table_upload, routing_table)
 
     def workload_submit(self, workload):
         self.logger.info("submit workload")

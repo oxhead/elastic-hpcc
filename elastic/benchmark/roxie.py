@@ -13,10 +13,11 @@ from elastic.util import parallel
 
 class RoxieBenchmark(base.Benchmark):
 
-    def __init__(self, hpcc_cluster, benchmark_config, workload_timeline, output_dir="/tmp"):
+    def __init__(self, hpcc_cluster, benchmark_config, workload_timeline, output_dir="/tmp", routing_table={}):
         super(RoxieBenchmark, self).__init__(hpcc_cluster.get_roxie_cluster(), output_dir)
         self.hpcc_cluster = hpcc_cluster
         self.benchmark_config = benchmark_config
+        self.routing_table = routing_table
         self.benchmark_service = BenchmarkService(self.benchmark_config)
         self.workload_timeline = workload_timeline
         self.workload_id = None
@@ -31,6 +32,7 @@ class RoxieBenchmark(base.Benchmark):
                 agent.submit(node.get_ip(), roxie.reset_metrics, node)
         self.benchmark_service.stop()
         self.benchmark_service.start()
+        self.benchmark_service.upload_routing_table(self.routing_table)
 
     def post_run(self):
         self.logger.info("Post-benchmark")

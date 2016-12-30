@@ -92,7 +92,8 @@ if __name__ == "__main__":
     dir_path = sys.argv[1]
     print(dir_path)
     for result_dir in sorted(glob.glob("{}/*".format(dir_path))):
-        input_file = os.path.join(result_dir, "result", "access_distribution.json")
+        input_file = result_dir
+        #input_file = os.path.join(result_dir, "result", "access_distribution.json")
         show_data(result_dir, input_file)
 
 

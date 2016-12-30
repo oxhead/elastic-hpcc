@@ -86,9 +86,10 @@ class ExperimentConfig(BaseConfig):
 
 
 class Experiment:
-    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=None, dp=None, wait_time=60, check_success=True, data_dir='/dataset', storage_type='nfs', restart_hpcc=False):
+    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=None, dp=None, wait_time=60, check_success=True, data_dir='/dataset', storage_type='nfs', restart_hpcc=False, routing_table={}):
         self.experiment_id = experiment_id
         self.benchmark_config = benchmark_config
+        self.routing_table = routing_table
         self.hpcc_cluster = hpcc_cluster
         self.hpcc_service = HPCCService(self.hpcc_cluster)
         self.workload_timeline = workload_timeline
@@ -109,11 +110,12 @@ class Experiment:
             self.hpcc_service.truncate_log()  # remove all logs
         self.hpcc_service.clean_system()  # to make the same base
         if self.dp is not None:
-            roxie.switch_data_placement(self.dp, data_dir=self.data_dir, storage_type=self.storage_type)
+            pass
+            #roxie.switch_data_placement(self.dp, data_dir=self.data_dir, storage_type=self.storage_type)
         #import sys
         #sys.exit(0)
         # doesn't harn so just start the service?
-        self.hpcc_service.start()
+        #self.hpcc_service.start()
 
     def post_run(self):
         wp_path = os.path.join(self.output_dir, "result", "workload_profile.json")
@@ -149,7 +151,7 @@ class Experiment:
             return False
         try:
             self.pre_run()
-            bm = RoxieBenchmark(self.hpcc_cluster, self.benchmark_config, self.workload_timeline, output_dir=self.output_dir)
+            bm = RoxieBenchmark(self.hpcc_cluster, self.benchmark_config, self.workload_timeline, output_dir=self.output_dir, routing_table=self.routing_table)
             time.sleep(self.wait_time)
             bm.run()
             if self.check_success and not self.check_successful():
@@ -222,6 +224,7 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
             continue
 
         dp_new = None
+        routing_table = {}
         access_profile = None
         if per_setting.has_key('experiment.data_placement'):
             data_placement_type, old_locations, access_profile = per_setting['experiment.data_placement']
@@ -237,10 +240,12 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
             #print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
             #import sys
             #sys.exit(0)
+            if per_setting.has_key('experiment.benchmark_manual_routing_table'):
+                routing_table = generate_routing_table(dp_new, workload_config.lookup_config('workload.endpoints'))
 
         data_dir = per_setting['experiment.dataset_dir'] if per_setting.has_key('experiment.dataset_dir') else '/dataset'
         storage_type = per_setting['experiment.storage_type'] if per_setting.has_key('experiment.storage_type') else 'nfs'
-        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=access_profile, dp=dp_new, wait_time=wait_time, check_success=check_success, data_dir=data_dir, storage_type=storage_type, restart_hpcc=restart_hpcc)
+        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=access_profile, dp=dp_new, wait_time=wait_time, check_success=check_success, data_dir=data_dir, storage_type=storage_type, restart_hpcc=restart_hpcc, routing_table=routing_table)
         experiment.workload_config = workload_config  # hack
         yield experiment
 
@@ -254,6 +259,8 @@ def roxie_node_comparator(node_ip):
 
 def roxie_file_comparator(file_name):
     try:
+        print(file_name)
+        print((int(file_name.split('.')[0].split('_')[-1]), int(file_name.split('.')[-1].split('_')[1])))
         return (int(file_name.split('.')[0].split('_')[-1]), int(file_name.split('.')[-1].split('_')[1]))
     except:
         pass
@@ -281,9 +288,10 @@ def generate_data_placement(old_nodes, new_nodes, locations, access_statistics, 
     sorted_af_list = []
     if max_num_partitions == 1:
         for node in old_nodes:
-            print(node, sum([(access_statistics[partition] if partition in access_statistics else 0) for partition in locations[node]]))
+            #print(node, sum([(access_statistics[partition] if partition in access_statistics else 0) for partition in locations[node]]))
             af_list.append(sum([(access_statistics[partition] if partition in access_statistics else 0) for partition in locations[node]]))
             partition_list.append(node)
+        # sort by node ip for now
         for node in sorted(partition_list, key=roxie_node_comparator):
             sorted_partition_list.append(node)
             sorted_af_list.append(af_list[partition_list.index(node)])
@@ -291,15 +299,18 @@ def generate_data_placement(old_nodes, new_nodes, locations, access_statistics, 
         for partition in sorted([partition for node in locations.keys() for partition in locations[node]]):
             af_list.append(access_statistics[partition] if partition in access_statistics else 0)
             partition_list.append(partition)
+        # this can be an issue
         for partition in sorted(partition_list, key=roxie_file_comparator):
             sorted_partition_list.append(partition)
             sorted_af_list.append(af_list[partition_list.index(partition)])
+    #print('-----------')
     for i in range(len(sorted_partition_list)):
         print(sorted_partition_list[i], sorted_af_list[i])
     M = len(old_nodes)
     N = len(nodes)
     k = max_num_partitions
     t = dp_model
+    print('+++Running data placement simulation+++')
     dp_records, adjusted_num_replicas_list = dp_simulation.run(M, N, k, t, af_list=sorted_af_list)
 
     # print(json.dumps(dp_records, indent=4))
@@ -332,6 +343,29 @@ def generate_partition_locations(node_list, num_partitions, partition_name_templ
             partition_locations[node].append(partition_name_template.format(partition_id))
     return partition_locations
 
+
+def generate_routing_table(dp, endpoints, query_name='sequential_search_firstname_'):
+    endpoint_table = {}
+    routing_table = {}
+
+    # dp should use the host/ip as the key?
+    for endpoint in endpoints:
+        host = endpoint.split('/')[-1].split(':')[0]
+        endpoint_table[host] = endpoint
+
+    for node, partitions in dp.locations.items():
+        for partition in partitions:
+            app_id = partition.split('/')[-1].split('.')[0].split('_')[-1]  # need to extract app id from the partition
+            mapped_query_name = query_name + app_id
+            if mapped_query_name not in routing_table:
+                routing_table[mapped_query_name] = []
+            # the order should not matter?
+            routing_table[mapped_query_name].append(endpoint_table[node])
+    #print(json.dumps(routing_table, indent=4))
+    #print('size={}'.format(len(routing_table)))
+    #import sys
+    #sys.exit(0)
+    return routing_table
 
 def analyze_timeline(timeline):
     distribution_records = {}
