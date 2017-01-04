@@ -70,8 +70,8 @@ class Timer(object):
         return self
 
     def __exit__(self, *args):
-        end = self.timer()
-        self.elapsed_secs = end - self.start
+        self.end = self.timer()
+        self.elapsed_secs = self.end - self.start
         self.elapsed = self.elapsed_secs * 1000  # millisecs
         if self.verbose:
             print

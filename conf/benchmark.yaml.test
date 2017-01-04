@@ -1,11 +1,11 @@
 controller:
     host: 10.25.2.123
     num_drivers: 4
-    commander:
+    client:
         port: 9999
-    job_queue:
+    driver:
         port: 9998
-    report_queue:
+    reporter:
         port: 9997
     manager:
         port: 9996
@@ -14,9 +14,5 @@ driver:
     query_timeout: 120
     manual_routing: True
     hosts:
-        - 10.25.3.86
-        - 10.25.3.93
-        - 10.25.3.94
-        - 10.25.3.96
-        #- 10.25.3.97
-        #- 10.25.3.98
+        - 10.25.2.123
+        - 10.25.2.123
