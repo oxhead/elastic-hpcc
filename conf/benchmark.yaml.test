@@ -10,9 +10,9 @@ controller:
     manager:
         port: 9996
 driver:
+    num_processors: 2
     num_workers: 32
     query_timeout: 120
     manual_routing: True
     hosts:
-        - 10.25.2.123
         - 10.25.2.123

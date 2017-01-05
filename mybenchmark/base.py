@@ -5,6 +5,7 @@ import pickle
 import json
 import hashlib
 import shutil
+import itertools
 
 from elastic import init
 from elastic.benchmark.config import BaseConfig
@@ -109,13 +110,22 @@ class Experiment:
         else:
             self.hpcc_service.truncate_log()  # remove all logs
         self.hpcc_service.clean_system()  # to make the same base
-        if self.dp is not None:
-            pass
-            #roxie.switch_data_placement(self.dp, data_dir=self.data_dir, storage_type=self.storage_type)
-        #import sys
-        #sys.exit(0)
-        # doesn't harn so just start the service?
-        #self.hpcc_service.start()
+        if self.dp is not None and self.dp.name is not None:
+            dp_name_file = '/tmp/dp_name'
+            previous_dp_name = ""
+            if os.path.exists(dp_name_file):
+                with open(dp_name_file, 'r') as f:
+                    previous_dp_name = f.read().strip()
+            if previous_dp_name == "" or self.dp.name != previous_dp_name:
+                print("Switch data placement from {} to {}".format(previous_dp_name, self.dp.name))
+                with open(dp_name_file, 'w') as f:
+                    print('Writing dp_name {} to {}'.format(self.dp.name, dp_name_file))
+                    f.write(self.dp.name)
+                roxie.switch_data_placement(self.dp, data_dir=self.data_dir, storage_type=self.storage_type)
+            else:
+                print("No need to switch data placement")
+        if self.restart_hpcc:
+            self.hpcc_service.start()
 
     def post_run(self):
         wp_path = os.path.join(self.output_dir, "result", "workload_profile.json")
@@ -209,8 +219,10 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         hpcc_cluster = HPCCCluster.parse_config(per_setting['cluster.target'])
         benchmark_config = BenchmarkConfig.parse_file(per_setting['cluster.benchmark'])
         #print("before", benchmark_config.config)
+        num_benchmark_processors_per_client = int(per_setting['experiment.benchmark_processors'])
         num_benchmark_clients = int(per_setting['experiment.benchmark_clients'])
         num_benchmark_concurrency = int(per_setting['experiment.benchmark_concurrency'])
+        benchmark_config.set_config("driver.num_processors", num_benchmark_processors_per_client)
         benchmark_config.set_config("driver.hosts", benchmark_config.lookup_config("driver.hosts")[:num_benchmark_clients])
         benchmark_config.set_config("driver.num_workers", num_benchmark_concurrency)
         #print("after", benchmark_config.config)
@@ -236,7 +248,12 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
 
             access_statistics = placement.PlacementTool.compute_partition_statistics(placement.PlacementTool.load_statistics(access_profile))
             coarse_grained = True if data_placement_type == placement.DataPlacementType.coarse_partial else False
-            dp_new = generate_data_placement(old_nodes, new_nodes, old_locations, access_statistics, coarse_grained=coarse_grained, dp_model=dp_model)
+            dp_name = per_setting['experiment.dp_name']
+            if data_placement_type == placement.DataPlacementType.complete:
+                all_nodes = old_nodes + new_nodes
+                dp_new = generate_complete_data_placement(all_nodes, old_locations)
+            else:
+                dp_new = generate_data_placement(old_nodes, new_nodes, old_locations, access_statistics, coarse_grained=coarse_grained, dp_model=dp_model, dp_name=dp_name)
             #print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
             #import sys
             #sys.exit(0)
@@ -249,7 +266,6 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         experiment.workload_config = workload_config  # hack
         yield experiment
 
-
 def roxie_node_comparator(node_ip):
     try:
         return int(node_ip.split('.')[-1])
@@ -259,15 +275,15 @@ def roxie_node_comparator(node_ip):
 
 def roxie_file_comparator(file_name):
     try:
-        print(file_name)
-        print((int(file_name.split('.')[0].split('_')[-1]), int(file_name.split('.')[-1].split('_')[1])))
+        #print(file_name)
+        #print((int(file_name.split('.')[0].split('_')[-1]), int(file_name.split('.')[-1].split('_')[1])))
         return (int(file_name.split('.')[0].split('_')[-1]), int(file_name.split('.')[-1].split('_')[1]))
     except:
         pass
     return file_name
 
 
-def generate_data_placement(old_nodes, new_nodes, locations, access_statistics, coarse_grained=True, dp_model='rainbow'):
+def generate_data_placement(old_nodes, new_nodes, locations, access_statistics, coarse_grained=True, dp_model='rainbow', dp_name=None):
     # assign node id
     nodes = sorted(set(old_nodes + new_nodes))  # should not have duplicate nodes
     #print("nodes:", nodes)
@@ -328,7 +344,13 @@ def generate_data_placement(old_nodes, new_nodes, locations, access_statistics, 
             new_locations[nodes[int(node_name)]] = []
             for partition_index in dp_records[node_name]:
                 new_locations[nodes[int(node_name)]].append(sorted_partition_list[partition_index])
-    return placement.DataPlacement(nodes, sorted_partition_list, new_locations)
+    return placement.DataPlacement(nodes, sorted_partition_list, new_locations, name=dp_name)
+
+
+def generate_complete_data_placement(node_list, partition_locations):
+    sorted_partition_list = list(sorted(set([x for sublist in partition_locations.values() for x in sublist]), key=roxie_file_comparator))
+    locations = {node: sorted_partition_list for node in node_list}
+    return placement.DataPlacement(node_list, locations[node_list[0]], locations, name='dp_complete')
 
 
 def generate_partition_locations(node_list, num_partitions, partition_name_template):
@@ -342,7 +364,6 @@ def generate_partition_locations(node_list, num_partitions, partition_name_templ
             partition_id = num_partitions_per_node * i + j
             partition_locations[node].append(partition_name_template.format(partition_id))
     return partition_locations
-
 
 def generate_routing_table(dp, endpoints, query_name='sequential_search_firstname_'):
     endpoint_table = {}

@@ -45,7 +45,16 @@ if __name__ == '__main__':
     while not client_protocol.workload_status(workload_id):
         print('workload {} is not completed'.format(workload_id))
         gevent.sleep(2)
+
     workload_statistics = client_protocol.workload_statistics(workload_id)
     print(json.dumps(workload_statistics, indent=4))
+
+    workload_report = client_protocol.workload_report(workload_id)
+    print(json.dumps(workload_report, indent=4))
+
+    workload_timeline_completion = client_protocol.workload_timeline_completion(workload_id)
+    print(json.dumps(workload_timeline_completion, indent=4))
+    workload_timeline_failure = client_protocol.workload_timeline_failure(workload_id)
+    print(json.dumps(workload_timeline_failure, indent=4))
     # stop service
     #client_protocol.stop()

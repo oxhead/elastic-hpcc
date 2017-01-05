@@ -1,6 +1,8 @@
 import logging
 from enum import Enum
 
+import zmq.green as zmq
+
 
 class SendProtocolHeader(Enum):
     admin_start = 0
@@ -76,7 +78,7 @@ class BenchmarkBaseProtocol:
         self.timeout = timeout
 
     def _send(self, header, *payloads):
-        self.logger.info("header={}, payloads={}".format(header, payloads))
+        # self.logger.info("header={}, payloads={}".format(header, payloads))
         request_protocol = BenchmarkProtocol(header, payloads)
         self.target_socket.send_pyobj(request_protocol)
         reply_protocol = self.target_socket.recv_pyobj()
@@ -150,3 +152,10 @@ class BenchmarkClientProtocol(BenchmarkBaseProtocol):
         return self._send(SendProtocolHeader.workload_download, workload_id)
 
 
+class BenchmarkCommander(BenchmarkClientProtocol):
+    def __init__(self, host, port):
+        self.host = host
+        context = zmq.Context()
+        commander_socket = context.socket(zmq.REQ)
+        commander_socket.connect("tcp://{}:{}".format(host, port))
+        super(BenchmarkCommander, self).__init__(commander_socket)

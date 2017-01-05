@@ -10,6 +10,7 @@ import random
 import gevent
 import gevent.pool
 import gevent.queue
+from gevent import monkey
 from gevent.pool import Group
 from gevent.lock import BoundedSemaphore
 import yaml
@@ -22,6 +23,8 @@ from elastic.benchmark.impl.base import *
 from elastic.benchmark.impl.protocol import *
 from elastic.util import helper
 
+monkey.patch_all()
+
 
 class BenchmarkConfig(config.BaseConfig):
 
@@ -31,6 +34,7 @@ class BenchmarkConfig(config.BaseConfig):
     CONTROLLER_REPORTER_PORT = "controller.reporter.port"
     CONTROLLER_MANAGER_PORT = "controller.manager.port"
 
+    DRIVER_NUM_PROCESSORS = "driver.num_processors"
     DRIVER_NUM_WORKER = "driver.num_workers"
     DRIVER_QUERY_TIMEOUT = "driver.query_timeout"
     DRIVER_MANUAL_ROUTING = "driver.manual_routing"
@@ -56,7 +60,7 @@ class BenchmarkNode:
 
     def worker_monitor(self):
         while True:
-            self.logger.info("monitoring...")
+            # self.logger.info("monitoring...")
             for runner in self.runner_group.greenlets:
                 if not bool(runner):
                     raise Exception("Abnormal greenlet found")
@@ -70,13 +74,16 @@ class BenchmarkController(BenchmarkNode):
             self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
             self.controller = controller
             self.num_drivers = num_drivers
+            self.port = port
             self.ready_drivers = 0
             self.driver_status = {}
+
+        def start(self):
             self.manager_publisher = self.controller.context.socket(zmq.PUB)
-            self.manager_publisher.bind("tcp://*:{}".format(port))
+            self.manager_publisher.bind("tcp://*:{}".format(self.port))
 
         def heartbeat_from_driver(self, driver_id, status):
-            self.logger.info("Driver {} sends heartbeat {}".format(driver_id, status))
+            # self.logger.info("Driver {} sends heartbeat {}".format(driver_id, status))
             self.driver_status[driver_id] = (status, time.time())
 
         def get_cluster_status(self):
@@ -100,10 +107,14 @@ class BenchmarkController(BenchmarkNode):
             self.manager_publisher.send_pyobj(ready_protocol)
 
     class WorkloadManager:
-        def __init__(self, controller, cluster_manager):
+        def __init__(self, controller, cluster_manager, manual_routing_enabled=True):
             self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
             self.controller = controller
             self.cluster_manager = cluster_manager
+            # we don't check this configuration for now
+            # cause the implementation, i.e. node_bucket and query_bucket is inefficient
+            # each retrieve operation requires notifying other node_bucket?
+            self.manual_routing_enabled = manual_routing_enabled
             self.workload_db = {}
             self.current_workload_record = None
             self.current_routing_table = {}
@@ -116,22 +127,22 @@ class BenchmarkController(BenchmarkNode):
             return self.workload_db[str(workload_id)]
 
         def retrieve_requests(self, node_bucket_id, num_requests):
-            self.logger.info("Retrieve from node bucket {} for {} requests".format(node_bucket_id, num_requests))
+            # self.logger.info("Retrieve from node bucket {} for {} requests".format(node_bucket_id, num_requests))
             if len(self.node_buckets) < 1:
-                self.logger.info("Node bucket {} is not initialized".format(node_bucket_id))
+                # self.logger.info("Node bucket {} is not initialized".format(node_bucket_id))
                 return [Request.new_empty()]
             elif node_bucket_id not in self.node_buckets:
-                self.logger.info("Node bucket {} is not empty".format(node_bucket_id))
+                # self.logger.info("Node bucket {} is not empty".format(node_bucket_id))
                 return [Request.new_empty()]
             else:
                 node_bucket = self.node_buckets[node_bucket_id]
-                self.logger.info("Current node bucket {} has {} requests".format(node_bucket.xid, node_bucket.qsize()))
+                # self.logger.info("Current node bucket {} has {} requests".format(node_bucket.xid, node_bucket.qsize()))
                 request_list = []
                 while len(request_list) < num_requests:
                     request = node_bucket.get_request()
-                    self.logger.info("Request type={}".format(request.xtype))
+                    #self.logger.info("Request type={}".format(request.xtype))
                     if request.xtype == RequestType.run:
-                        self.logger.info("Correcting request information")
+                        # self.logger.info("Correcting request information")
                         workload_item = request.workload
                         workload_correct = workload.WorkloadItem(workload_item.wid, workload_item.query_name, node_bucket.endpoint, workload_item.query_key, workload_item.key)
                         request_correct = Request(request.xtype, request.xid, workload_correct)
@@ -139,9 +150,9 @@ class BenchmarkController(BenchmarkNode):
                     else:
                         request_list.append(request)
                         break
-                for request in request_list:
-                    self.logger.info("xid={}, xtype={}".format(request.xid, request.xtype))
-                self.logger.info('Get {} requests from node bucket {}'.format(len(request_list)-1, node_bucket_id))
+                #for request in request_list:
+                #    self.logger.info("xid={}, xtype={}".format(request.xid, request.xtype))
+                #self.logger.info('Get {} requests from node bucket {}'.format(len(request_list)-1, node_bucket_id))
                 return request_list
 
         def submit(self, workload):
@@ -184,10 +195,10 @@ class BenchmarkController(BenchmarkNode):
 
             self.logger.info('# of query buckets: {}'.format(len(query_bucket_table)))
             self.logger.info('# of node buckets: {}'.format(len(node_bucket_table)))
-            for query_bucket in query_bucket_table.values():
-                self.logger.info("Query bucket {}".format(query_bucket.name))
-                for node_bucket in query_bucket.node_buckets:
-                    self.logger.info("\t* Node bucket {} => {}".format(node_bucket.xid, node_bucket))
+            #for query_bucket in query_bucket_table.values():
+            #    self.logger.info("Query bucket {}".format(query_bucket.name))
+            #    for node_bucket in query_bucket.node_buckets:
+            #        self.logger.info("\t* Node bucket {} => {}".format(node_bucket.xid, node_bucket))
 
             # start the counter
             self.current_workload_record.start()
@@ -201,22 +212,22 @@ class BenchmarkController(BenchmarkNode):
                 for workload_item in workload_items:
                     query_name = workload_item.query_name
                     query_bucket = query_bucket_table[query_name]
-                    self.logger.info('wid={} {} {} {} {}'.format(workload_item.wid, workload_item.endpoint, workload_item.query_name, workload_item.query_key, workload_item.key))
+                    #self.logger.info('wid={} {} {} {} {}'.format(workload_item.wid, workload_item.endpoint, workload_item.query_name, workload_item.query_key, workload_item.key))
                     #req = Request.new(workload_item, query_bucket)
                     req = Request.new(workload_item)
                     query_bucket.put_request(req)
-                    self.logger.info("-> query bucket {}".format(query_bucket.name))
-                    for node_bucket in query_bucket.node_buckets:
-                        self.logger.info("\t* node bucket {} has {} request => {}".format(node_bucket.xid, node_bucket.qsize(), node_bucket))
+                    #self.logger.info("-> query bucket {}".format(query_bucket.name))
+                    #for node_bucket in query_bucket.node_buckets:
+                    #    self.logger.info("\t* node bucket {} has {} request => {}".format(node_bucket.xid, node_bucket.qsize(), node_bucket))
                 gevent.sleep(1)  # not good because of potential time skew
 
-            for query_bucket in query_bucket_table.values():
-                for node_bucket in query_bucket.node_buckets:
-                    self.logger.info("Node bucket {} has {} requests => {}".format(node_bucket.xid, node_bucket.qsize(), node_bucket))
+            #for query_bucket in query_bucket_table.values():
+            #    for node_bucket in query_bucket.node_buckets:
+            #        self.logger.info("Node bucket {} has {} requests => {}".format(node_bucket.xid, node_bucket.qsize(), node_bucket))
 
-            self.logger.info('-----------------')
-            for bid, node_bucket in self.node_buckets.items():
-                self.logger.info("Node bucket {} has {} requests => {}".format(bid, node_bucket.qsize(), node_bucket))
+            #self.logger.info('-----------------')
+            #for bid, node_bucket in self.node_buckets.items():
+            #    self.logger.info("Node bucket {} has {} requests => {}".format(bid, node_bucket.qsize(), node_bucket))
             #for endpoint, node_bucket in self.node_bucket_table.items():
             #    self.logger.info("Node bucket {} has {} requests".format(node_bucket.xid, node_bucket.qsize()))
 
@@ -355,7 +366,7 @@ class BenchmarkController(BenchmarkNode):
             }
 
         def process(self):
-            self.logger.info("Driver handler is waiting for command")
+            # self.logger.info("Driver handler is waiting for command")
             super().process()
 
         def register(self, driver_id):
@@ -371,7 +382,7 @@ class BenchmarkController(BenchmarkNode):
             self.controller.cluster_manager.heartbeat_from_driver(driver_id, status)
 
         def retrieve_jobs(self, driver_id, num_requests):
-            self.logger.info('Driver {} asks for {} request'.format(driver_id, num_requests))
+            # self.logger.info('Driver {} asks for {} request'.format(driver_id, num_requests))
             # driver_id == node_bucket_id
             return self.controller.workload_manager.retrieve_requests(driver_id, num_requests)
 
@@ -393,7 +404,7 @@ class BenchmarkController(BenchmarkNode):
             }
 
         def process(self):
-            self.logger.info("Client handler is waiting for command")
+            # self.logger.info("Client handler is waiting for command")
             super().process()
 
         def status(self):
@@ -435,23 +446,23 @@ class BenchmarkController(BenchmarkNode):
         super(BenchmarkController, self).__init__(config_path)
         self.logger.info("Controller is initializing")
 
-        self.num_drivers = len(self.config.get_drivers())
+        self.num_drivers = int(self.config.lookup_config(BenchmarkConfig.DRIVER_NUM_PROCESSORS, 1) * len(self.config.get_drivers()))
         # self.num_queries = self.config.get_config("workload")["num_quries"]
         self.driver_port = self.config.lookup_config(BenchmarkConfig.CONTROLLER_DRIVER_PORT)
         self.reporter_port = self.config.lookup_config(BenchmarkConfig.CONTROLLER_REPORTER_PORT)
-        self.manual_routing_enabled = self.config.lookup_config(BenchmarkConfig.DRIVER_MANUAL_ROUTING, False)
 
         self.cluster_manager = BenchmarkController.ClusterManager(self, self.num_drivers, self.config.lookup_config(BenchmarkConfig.CONTROLLER_MANAGER_PORT))
         # workload related
-        self.workload_manager = BenchmarkController.WorkloadManager(self, self.cluster_manager)
+        self.workload_manager = BenchmarkController.WorkloadManager(self, self.cluster_manager, self.config.lookup_config(BenchmarkConfig.DRIVER_MANUAL_ROUTING, False))
 
     def start(self):
         self.logger.info("Controller is starting")
+        self.cluster_manager.start()
 
         self.runner_group.spawn(self.worker_monitor)
-        self.runner_group.spawn(self.worker_client)
         self.runner_group.spawn(self.worker_driver)
         self.runner_group.spawn(self.worker_collect_report)
+        self.runner_group.spawn(self.worker_client)
 
         self.logger.info("Controller started")
         self.runner_group.join()
@@ -462,7 +473,7 @@ class BenchmarkController(BenchmarkNode):
         self.runner_group.kill()
 
     def worker_client(self):
-        self.logger.info("client worker is running")
+        self.logger.info("Client worker is running")
         client_socket = self.context.socket(zmq.REP)
         client_socket.bind("tcp://*:{}".format(self.config.lookup_config(BenchmarkConfig.CONTROLLER_CLIENT_PORT)))
         protocol_handler = BenchmarkController.ClientProtocolHandler(self, client_socket)
@@ -471,7 +482,7 @@ class BenchmarkController(BenchmarkNode):
             protocol_handler.process()
 
     def worker_driver(self):
-        self.logger.info("driver worker is running")
+        self.logger.info("Driver worker is running")
         driver_socket = self.context.socket(zmq.REP)
         driver_socket.bind("tcp://*:{}".format(self.config.lookup_config(BenchmarkConfig.CONTROLLER_DRIVER_PORT)))
         protocol_handler = BenchmarkController.InternalProtocolHandler(self, driver_socket)
@@ -480,7 +491,7 @@ class BenchmarkController(BenchmarkNode):
             protocol_handler.process()
 
     def worker_collect_report(self):
-        self.logger.info('report collector is running')
+        self.logger.info('Report collector is running')
         reporter_socket = self.context.socket(zmq.PULL)
         reporter_socket.bind("tcp://*:{}".format(self.config.lookup_config(BenchmarkConfig.CONTROLLER_REPORTER_PORT)))
 
@@ -535,7 +546,7 @@ class BenchmarkDriver(BenchmarkNode):
         self.runner_group.kill()
 
     def monitor_health(self):
-        self.logger.info("monitoring...")
+        # self.logger.info("monitoring...")
         for runner in self.runner_group.greenlets:
             if not bool(runner):
                 return False
@@ -546,6 +557,7 @@ class BenchmarkDriver(BenchmarkNode):
         internal_socket.connect("tcp://{}:{}".format(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_DRIVER_PORT)))
         internal_protocol = BenchmarkInternalProtocol(self.driver_id, internal_socket)
         internal_protocol.register()
+        internal_protocol.ready()  # for benchmark service to check
 
     def worker_heartbeat(self):
         '''
@@ -591,8 +603,8 @@ class BenchmarkDriver(BenchmarkNode):
                 report_statistic_list.append(self.report_queue.get())
             #TODO: add socket send here
             # report every one second
-            self.logger.info("There are {} query completed".format(len(report_statistic_list)))
             if len(report_statistic_list) > 0:
+                self.logger.info("There are {} query completed".format(len(report_statistic_list)))
                 reporter_procotol.report_statistic_list(report_statistic_list)
             gevent.sleep(1)
 
@@ -606,17 +618,20 @@ class BenchmarkDriver(BenchmarkNode):
         internal_protocol = BenchmarkInternalProtocol(self.driver_id, internal_socket)
 
         while True:
-            num_jobs_required = int(0.5 * self.num_workers)  # use half for now
+            # Is this a good number? Don't take all but leave chances to other dirver??
+            num_jobs_required = int(0.5 * self.num_workers)
             request_list = internal_protocol.retrieve_jobs(num_jobs_required)
+            num_requests = len(request_list) if request_list[-1].xtype != RequestType.run else len(request_list)-1
+            self.logger.info("Retrieved {} requests".format(num_requests))
             for request in request_list:
-                self.logger.info("Retrieved request: {}".format(request))
+                #self.logger.info("Retrieved request: {}".format(request))
                 if request.xtype == RequestType.empty:
                     # this should be the last element
-                    self.logger.info("Request queue is empty")
+                    #self.logger.info("Request queue is empty")
                     gevent.sleep(1)
                 elif request.xtype == RequestType.stop:
                     # this should be the last element
-                    self.logger.info('job retriever completed')
+                    #self.logger.info('job retriever completed')
                     gevent.sleep(1)
                     #return
                 else:
@@ -624,7 +639,7 @@ class BenchmarkDriver(BenchmarkNode):
                     workload_item.queue_timestamp = time.time()
                     self.worker_queue.put(workload_item)
             self.logger.info("current queue size: {}".format(self.worker_queue.qsize()))
-            gevent.sleep(0)  # yield to workers?
+            gevent.sleep(0.2)  # yield to workers?
 
     def worker_query(self, worker_id):
         session = query.new_session()
@@ -634,14 +649,15 @@ class BenchmarkDriver(BenchmarkNode):
             self.logger.info("idle workers: {}, queue lengths: {}".format(self.worker_pool.free_count(), self.worker_queue.qsize()))
             self.logger.info("worker {} is processing roxie query {}".format(worker_id, worker_item.wid))
             self.logger.info("{} {} {} {} {}".format(worker_item.wid, worker_item.endpoint, worker_item.query_name, worker_item.query_key, worker_item.key))
-            with helper.Timer() as t:
-                success, output_size, status_code, exception_description = query.execute_workload_item(session, worker_item, timeout=self.query_timeout)
+            time_start = time.time()
+            success, output_size, status_code, exception_description = query.execute_workload_item(session, worker_item, timeout=self.query_timeout)
+            time_end = time.time()
 
             report_detail = {
                 "item": worker_item.wid,
                 "queueTimestamp": worker_item.queue_timestamp,
-                "startTimestamp": t.start,
-                "finishTimestamp": t.end,
+                "startTimestamp": time_start,
+                "finishTimestamp": time_end,
                 "success": success,
                 "size": output_size,
                 "status": status_code,

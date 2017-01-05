@@ -2,12 +2,10 @@ import os
 import logging
 
 import click
-from executor import execute
 
 from elastic import init
-from elastic.benchmark.zeromqimpl import *
+from elastic.benchmark.impl.zeromqimpl import *
 from elastic.util import daemon
-from elastic.benchmark.service import BenchmarkService
 
 
 class BenchmarkControllerDaemon(daemon.Daemon):

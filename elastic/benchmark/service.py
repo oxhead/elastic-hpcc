@@ -5,9 +5,8 @@ import json
 
 from elastic.util import parallel
 from elastic.benchmark.workload import Workload, WorkloadExecutionTimeline
-from elastic.benchmark.zeromqimpl import BenchmarkCommander
-from elastic.benchmark.zeromqimpl import BenchmarkConfig
-from elastic.util import network as network_util
+from elastic.benchmark.impl.protocol import BenchmarkCommander
+from elastic.benchmark.impl.zeromqimpl import BenchmarkConfig
 
 
 class BenchmarkService:
@@ -18,8 +17,15 @@ class BenchmarkService:
 
     def __init__(self, config):
         self.config = config
-        self.commander = BenchmarkCommander(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_COMMANDER_PORT))
+        self.commander = BenchmarkCommander(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_CLIENT_PORT))
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
+        self.num_processor_per_driver = self.config.lookup_config(BenchmarkConfig.DRIVER_NUM_PROCESSORS, 1)
+        self.driver_instances = {}
+        driver_counter = 0
+        for driver_node in self.config.get_drivers():
+            for processor in range(self.num_processor_per_driver):
+                driver_counter += 1
+                self.driver_instances[driver_counter] = driver_node
 
     def export_config(self, output_path):
         self.config.to_file(output_path)
@@ -60,23 +66,17 @@ class BenchmarkService:
             self.logger.info("start the controller node at {}".format(self.config.get_controller()))
             agent.submit_remote_command(self.config.get_controller(), 'cd ~/elastic-hpcc; source init.sh; mycontroller start', silent=True)
 
-            for driver_node in self.config.get_drivers():
-                self.logger.info("start the driver node at {}".format(driver_node))
-                agent.submit_remote_command(driver_node, 'cd ~/elastic-hpcc; source init.sh; mydriver start', silent=True)
+            for driver_id, driver_host in self.driver_instances.items():
+                self.logger.info("start the driver {} at {}".format(driver_id, driver_host))
+                agent.submit_remote_command(driver_host, 'cd ~/elastic-hpcc; source init.sh; mydriver start {}'.format(driver_id), silent=True)
 
     def stop(self):
         with parallel.CommandAgent(show_result=True) as agent:
-            # TODO: a better way? Should not use fixed directory
-            for driver_node in self.config.get_drivers():
-                self.logger.info("stop the driver node at {}".format(driver_node))
-                agent.submit_remote_command(driver_node, 'cd ~/elastic-hpcc; source init.sh; mydriver stop', silent=True)
+            for driver_id, driver_host in self.driver_instances.items():
+                self.logger.info("stop the driver {} at {}".format(driver_id, driver_host))
+                agent.submit_remote_command(driver_host, 'cd ~/elastic-hpcc; source init.sh; mydriver stop {}'.format(driver_id), silent=True)
             self.logger.info("stop the controller node at {}".format(self.config.get_controller()))
-            agent.submit_remote_command(self.config.get_controller(),
-                                        'cd ~/elastic-hpcc; source init.sh; mycontroller stop', silent=True)
-
-        #self.commander.stop()
-        #with parallel.CommandAgent(concurrency=len(self.config.get_drivers())) as agent:
-        #    agent.submit_remote_commands(self.config.get_drivers(), "sudo pkill -9 python", check=False)
+            agent.submit_remote_command(self.config.get_controller(), 'cd ~/elastic-hpcc; source init.sh; mycontroller stop', silent=True)
 
     def status(self):
         self.logger.info("check status of benchmark service")
@@ -84,9 +84,10 @@ class BenchmarkService:
 
     def is_ready(self):
         status_result = self.status()
-        self.logger.debug("# of online drivers: {}".format(len(status_result)))
-        self.logger.debug("# of drivers: {}".format(len(self.config.get_drivers())))
-        return len(status_result) == len(self.config.get_drivers())
+        self.logger.info(status_result)
+        self.logger.info("# of online drivers: {}".format(len(status_result)))
+        self.logger.info("# of drivers: {}".format(len(self.driver_instances)))
+        return len(status_result) == len(self.driver_instances)
 
     def submit_workload(self, workload):
         if isinstance(workload, Workload):
@@ -128,5 +129,5 @@ class BenchmarkService:
         return self.commander.workload_timeline_failure(workload_id)
 
     def upload_routing_table(self, routing_table):
-        self.logger.debug(json.dumps(routing_table, indent=4))
+        # self.logger.debug(json.dumps(routing_table, indent=4))
         return self.commander.routing_table_upload(routing_table)

@@ -58,24 +58,25 @@ class PlacementTool:
 
 class DataPlacement:
     @staticmethod
-    def new(locations):
+    def new(locations, name=None):
         old_locations = locations
         old_partitions = PlacementTool.extract_partitions(locations)
         old_nodes = list(locations.keys())
-        return DataPlacement(old_nodes, old_partitions, old_locations)
+        return DataPlacement(old_nodes, old_partitions, old_locations, name=name)
 
-    def __init__(self, nodes, partitions, locations):
+    def __init__(self, nodes, partitions, locations, name=None):
         self.nodes = nodes
         self.partitions = partitions
         self.locations = locations
+        self.name = name
 
 
 class CompleteDataPlacement:
     @staticmethod
-    def compute_optimal_placement(old_placement, new_nodes):
+    def compute_optimal_placement(old_placement, new_nodes, name=None):
         all_nodes = list(set(old_placement.nodes + new_nodes))
         all_locations = {n: old_placement.partitions for n in all_nodes}
-        return DataPlacement(all_nodes, old_placement.partitions, all_locations)
+        return DataPlacement(all_nodes, old_placement.partitions, all_locations, name=name)
 
 
 class CoarseGrainedDataPlacement:
@@ -84,7 +85,7 @@ class CoarseGrainedDataPlacement:
 
         nodes_to_add = sorted(list(set(new_nodes) - set(old_placement.nodes)))
         #print(nodes_to_add)
-
+        DataPlacement(new_nodes, old_placement.partitions, new_locations)
         node_statistics = PlacementTool.convert_to_node_statistics(old_placement.locations, access_statistics)
         #print("node_statistics:", node_statistics)
 
@@ -130,7 +131,7 @@ class CoarseGrainedDataPlacement:
         new_locations.update(old_locations)
         #print("optimal:", json.dumps(new_locations, indent=4, sort_keys=True))
 
-        return DataPlacement(new_nodes, old_placement.partitions, new_locations)
+        return
 
 
 class FineGrainedDataPlacement:
