@@ -13,7 +13,7 @@ from elastic.util import parallel
 
 class RoxieBenchmark(base.Benchmark):
 
-    def __init__(self, hpcc_cluster, benchmark_config, workload_timeline, output_dir="/tmp", routing_table={}):
+    def __init__(self, hpcc_cluster, benchmark_config, workload_timeline, output_dir="/tmp", routing_table={}, timeout=300):
         super(RoxieBenchmark, self).__init__(hpcc_cluster.get_roxie_cluster(), output_dir)
         self.hpcc_cluster = hpcc_cluster
         self.benchmark_config = benchmark_config
@@ -21,6 +21,7 @@ class RoxieBenchmark(base.Benchmark):
         self.benchmark_service = BenchmarkService(self.benchmark_config)
         self.workload_timeline = workload_timeline
         self.workload_id = None
+        self.timeout = timeout
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
 
     def pre_run(self):
@@ -113,7 +114,7 @@ class RoxieBenchmark(base.Benchmark):
         self.logger.info("output dir = {}".format(self.output_dir))
         self.workload_id = self.benchmark_service.submit_workload(self.workload_timeline)
         self.logger.info("workload id={}".format(self.workload_id))
-        self.benchmark_service.wait_for_workload(self.workload_id)
+        self.benchmark_service.wait_for_workload(self.workload_id, self.timeout)
 
     def clean_benchmark(self):
         pass

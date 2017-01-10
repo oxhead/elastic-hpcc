@@ -48,7 +48,7 @@ def get_workload_distribution(node):
 
 def get_part_access_statistics(node_list):
     with parallel.CommandAgent(concurrency=len(node_list), show_result=False) as agent:
-        grep_cmd = "grep '19CRoxieFetchActivity' /var/log/HPCCSystems/myroxie/roxie.log | grep part | cut -d'=' -f3 | while read line; do echo $line; done | sed 's/.$//' | awk '{dups[$1]++} END{for (num in dups) {print dups[num],num}}'"
+        grep_cmd = "grep 'kind=19CRoxieFetchActivity' /var/log/HPCCSystems/myroxie/roxie.log | grep '=>' | grep part | cut -d',' -f2 | cut -d'=' -f2 | awk '{dups[$1]++} END{for (num in dups) {print dups[num],num}}'"
         # old implementation, bad performance
         # grep_cmd = "grep '19CRoxieFetchActivity' /var/log/HPCCSystems/myroxie/roxie.log | grep part | cut -d'=' -f3 | while read line; do echo $line | sed 's/.$//'; done | sort | uniq -c"
         agent.submit_remote_commands(node_list, grep_cmd, cids=[n.get_ip() for n in node_list], capture=True, silent=True)

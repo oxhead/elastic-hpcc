@@ -179,7 +179,7 @@ class BenchmarkController(BenchmarkNode):
             while not self.cluster_manager.is_cluster_ready():
                 gevent.sleep(1)
 
-            self.logger.info("All drrivers are ready")
+            self.logger.info("All drivers are ready")
 
             # initialize query and node buckets
             sorted_endpoints = sorted(list(set(x for sublist in self.current_routing_table.values() for x in sublist)))
@@ -204,22 +204,25 @@ class BenchmarkController(BenchmarkNode):
             self.current_workload_record.start()
 
             # start to dispatch workload - num_queries
-            current_workload = self.current_workload_record.get_workload()
-            for t, workload_items in current_workload.next():
-                self.logger.info("current time: {}".format(t))
-                self.logger.info("current workload items: {}".format(len(workload_items)))
-                self.current_workload_record.add_workload(len(workload_items))
-                for workload_item in workload_items:
-                    query_name = workload_item.query_name
-                    query_bucket = query_bucket_table[query_name]
-                    #self.logger.info('wid={} {} {} {} {}'.format(workload_item.wid, workload_item.endpoint, workload_item.query_name, workload_item.query_key, workload_item.key))
-                    #req = Request.new(workload_item, query_bucket)
-                    req = Request.new(workload_item)
-                    query_bucket.put_request(req)
-                    #self.logger.info("-> query bucket {}".format(query_bucket.name))
-                    #for node_bucket in query_bucket.node_buckets:
-                    #    self.logger.info("\t* node bucket {} has {} request => {}".format(node_bucket.xid, node_bucket.qsize(), node_bucket))
-                gevent.sleep(1)  # not good because of potential time skew
+            try:
+                current_workload = self.current_workload_record.get_workload()
+                for t, workload_items in current_workload.next():
+                    self.logger.info("current time: {}".format(t))
+                    self.logger.info("current workload items: {}".format(len(workload_items)))
+                    self.current_workload_record.add_workload(len(workload_items))
+                    for workload_item in workload_items:
+                        query_name = workload_item.query_name
+                        query_bucket = query_bucket_table[query_name]
+                        #self.logger.info('wid={} {} {} {} {}'.format(workload_item.wid, workload_item.endpoint, workload_item.query_name, workload_item.query_key, workload_item.key))
+                        #req = Request.new(workload_item, query_bucket)
+                        req = Request.new(workload_item)
+                        query_bucket.put_request(req)
+                        #self.logger.info("-> query bucket {}".format(query_bucket.name))
+                        #for node_bucket in query_bucket.node_buckets:
+                        #    self.logger.info("\t* node bucket {} has {} request => {}".format(node_bucket.xid, node_bucket.qsize(), node_bucket))
+                    gevent.sleep(1)  # not good because of potential time skew
+            except:
+                self.logger.exception("Unable to dispatch requests!!!")
 
             #for query_bucket in query_bucket_table.values():
             #    for node_bucket in query_bucket.node_buckets:
@@ -250,12 +253,26 @@ class BenchmarkController(BenchmarkNode):
             self.statistics = {}
             self.timeline_completion = {}
             self.timeline_failure = {}
+            self.timeline_completion_detailed = {}
+            self.timeline_failure_detailed = {}
             self.logger = logging.getLogger(__name__)
             self.statistics_lock = BoundedSemaphore(1)
+            self.greenlet_record = None
+            self.report_records = {}
 
         def start(self):
             self.logger.info("Workload {} is started".format(self.workload_id))
             self.time_start = time.time()
+            # TODO: implement
+            # should start the record keeper
+            # self.greenlet_record = gevent.spawn(self.workload)
+
+        def stop(self):
+            self.greenlet_record.kill()
+
+        def worker_record(self):
+            # TODO: add thread to process report every one second?
+            pass
 
         def get_workload(self):
             return self.workload
@@ -268,13 +285,14 @@ class BenchmarkController(BenchmarkNode):
             self.dispatch_completed = True
 
         def report_completion(self, driver_id, report):
+            # self.logger.info("Recording completion from driver {}".format(driver_id))
             self.time_last_report = time.time()
             self.num_finished_jobs += 1
             item_id = report['item']
             report.pop('item', None)
             # TODO: do we need lock??
             self.statistics_lock.acquire()
-            before_length = len(self.statistics)
+            #before_length = len(self.statistics)
             self.statistics[item_id] = report
             #self.logger.info("on report: {}, before={}, after={}".format(item_id, before_length, len(self.statistics)))
             self.statistics_lock.release()
@@ -329,8 +347,11 @@ class BenchmarkController(BenchmarkNode):
         def process(self):
             driver_id, report_statistic_list = self._receive().payloads
             self.logger.info("Received reports from driver {} for {} completions".format(driver_id, len(report_statistic_list)))
-            for report_statistic in report_statistic_list:
-                self.controller.workload_manager.current_workload_record.report_completion(driver_id, report_statistic)
+            try:
+                for report_statistic in report_statistic_list:
+                    self.controller.workload_manager.current_workload_record.report_completion(driver_id, report_statistic)
+            except:
+                self.logger.exception("Unable to process report from driver {}".format(driver_id))
             self.logger.debug("Driver {} completed {} reports".format(driver_id, len(report_statistic_list)))
 
     class BaseProtocolHandler:
@@ -382,9 +403,18 @@ class BenchmarkController(BenchmarkNode):
             self.controller.cluster_manager.heartbeat_from_driver(driver_id, status)
 
         def retrieve_jobs(self, driver_id, num_requests):
-            # self.logger.info('Driver {} asks for {} request'.format(driver_id, num_requests))
+            self.logger.info('Driver {} asks for {} request'.format(driver_id, num_requests))
             # driver_id == node_bucket_id
-            return self.controller.workload_manager.retrieve_requests(driver_id, num_requests)
+            try:
+                request_list = self.controller.workload_manager.retrieve_requests(driver_id, num_requests)
+                num_requests = len(request_list) if request_list[-1].xtype != RequestType.run else len(request_list) - 1
+                if num_requests > 0:
+                    self.logger.info("Got {} requests from node bucket {}".format(len(request_list), driver_id))
+                return request_list
+            except:
+                self.logger.exception("Unable to fetch requests from the workload manager for driver {}".format(driver_id))
+
+            return [Request.new_empty()]
 
     class ClientProtocolHandler(BaseProtocolHandler):
         def __init__(self, controller, target_socket):
@@ -546,9 +576,13 @@ class BenchmarkDriver(BenchmarkNode):
         self.runner_group.kill()
 
     def monitor_health(self):
-        # self.logger.info("monitoring...")
+        self.logger.info("monitoring...")
         for runner in self.runner_group.greenlets:
             if not bool(runner):
+                try:
+                    self.logger.info("runner {} is not running".format(runner))
+                except:
+                    self.logger.exception("unable to detect greenlet status")
                 return False
         return True
 
@@ -619,27 +653,31 @@ class BenchmarkDriver(BenchmarkNode):
 
         while True:
             # Is this a good number? Don't take all but leave chances to other dirver??
-            num_jobs_required = int(0.5 * self.num_workers)
-            request_list = internal_protocol.retrieve_jobs(num_jobs_required)
-            num_requests = len(request_list) if request_list[-1].xtype != RequestType.run else len(request_list)-1
-            self.logger.info("Retrieved {} requests".format(num_requests))
-            for request in request_list:
-                #self.logger.info("Retrieved request: {}".format(request))
-                if request.xtype == RequestType.empty:
-                    # this should be the last element
-                    #self.logger.info("Request queue is empty")
-                    gevent.sleep(1)
-                elif request.xtype == RequestType.stop:
-                    # this should be the last element
-                    #self.logger.info('job retriever completed')
-                    gevent.sleep(1)
-                    #return
-                else:
-                    workload_item = request.workload
-                    workload_item.queue_timestamp = time.time()
-                    self.worker_queue.put(workload_item)
-            self.logger.info("current queue size: {}".format(self.worker_queue.qsize()))
-            gevent.sleep(0.2)  # yield to workers?
+            try:
+                # self.logger.info("Ready to retrieve requests from the controller...")
+                num_jobs_required = int(0.5 * self.num_workers)
+                request_list = internal_protocol.retrieve_jobs(num_jobs_required)
+                num_requests = len(request_list) if request_list[-1].xtype != RequestType.run else len(request_list)-1
+                self.logger.info("Retrieved {} requests".format(num_requests))
+                for request in request_list:
+                    #self.logger.info("Retrieved request: {}".format(request))
+                    if request.xtype == RequestType.empty:
+                        # this should be the last element
+                        #self.logger.info("Request queue is empty")
+                        gevent.sleep(1)
+                    elif request.xtype == RequestType.stop:
+                        # this should be the last element
+                        #self.logger.info('job retriever completed')
+                        gevent.sleep(1)
+                        #return
+                    else:
+                        workload_item = request.workload
+                        workload_item.queue_timestamp = time.time()
+                        self.worker_queue.put(workload_item)
+                self.logger.info("current queue size: {}".format(self.worker_queue.qsize()))
+                gevent.sleep(0.2)  # yield to workers?
+            except:
+                self.logger.exception("Unable to retrieve requests???")
 
     def worker_query(self, worker_id):
         session = query.new_session()

@@ -203,11 +203,16 @@ class NodeBucket(SimpleBucket):
                     request.xtype = RequestType.run
                     return request
 
-        if not self.dispatch_completed:
-            gevent.sleep(1)  # good timeout?
-            return self.get_request()
-        else:
+        # this cause infinity wait??
+        #if not self.dispatch_completed:
+        #    gevent.sleep(1)  # good timeout?
+        #    return self.get_request()
+        #else:
+        #    return Request.new_stop()
+        if self.dispatch_completed:
             return Request.new_stop()
+        else:
+            return Request.new_empty()
 
     def notify_taken(self, request):
         self.taken_set.add(request)

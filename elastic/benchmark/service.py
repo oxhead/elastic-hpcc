@@ -20,6 +20,7 @@ class BenchmarkService:
         self.commander = BenchmarkCommander(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_CLIENT_PORT))
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
         self.num_processor_per_driver = self.config.lookup_config(BenchmarkConfig.DRIVER_NUM_PROCESSORS, 1)
+        # assign driver id
         self.driver_instances = {}
         driver_counter = 0
         for driver_node in self.config.get_drivers():
@@ -103,12 +104,16 @@ class BenchmarkService:
         workload_id = self.submit_workload(workload)
         self.wait_for_workload(workload_id)
 
-    def wait_for_workload(self, workload_id):
+    def wait_for_workload(self, workload_id, timeout=-1):
+        count = 0
         while True:
             if self.is_workload_completed(workload_id):
                 break
             else:
                 time.sleep(1)
+                count += 1
+            if timeout >= 0 and count >= timeout:
+                raise Exception('Unable to complete workload {} within {} seconds'.format(workload_id, timeout))
 
     def get_workload_status(self, workload_id):
         return self.commander.workload_status(workload_id)

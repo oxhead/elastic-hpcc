@@ -87,7 +87,7 @@ class ExperimentConfig(BaseConfig):
 
 
 class Experiment:
-    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=None, dp=None, wait_time=60, check_success=True, data_dir='/dataset', storage_type='nfs', restart_hpcc=False, routing_table={}):
+    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=None, dp=None, wait_time=60, check_success=True, data_dir='/dataset', storage_type='nfs', restart_hpcc=False, routing_table={}, timeout=300):
         self.experiment_id = experiment_id
         self.benchmark_config = benchmark_config
         self.routing_table = routing_table
@@ -102,6 +102,7 @@ class Experiment:
         self.data_dir = data_dir
         self.storage_type = storage_type
         self.restart_hpcc = restart_hpcc
+        self.timeout = timeout
 
     def pre_run(self):
         if self.restart_hpcc:
@@ -161,7 +162,7 @@ class Experiment:
             return False
         try:
             self.pre_run()
-            bm = RoxieBenchmark(self.hpcc_cluster, self.benchmark_config, self.workload_timeline, output_dir=self.output_dir, routing_table=self.routing_table)
+            bm = RoxieBenchmark(self.hpcc_cluster, self.benchmark_config, self.workload_timeline, output_dir=self.output_dir, routing_table=self.routing_table, timeout=self.timeout)
             time.sleep(self.wait_time)
             bm.run()
             if self.check_success and not self.check_successful():
@@ -178,7 +179,7 @@ class Experiment:
         return False
 
 
-def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, timeline_reuse=False, wait_time=60, check_success=True, overwrite=False, restart_hpcc=False):
+def generate_experiments(default_setting, variable_setting_list, experiment_dir=None, timeline_reuse=False, wait_time=60, check_success=True, overwrite=False, restart_hpcc=False, timeout=300):
     for variable_setting in variable_setting_list:
         per_setting = copy.deepcopy(default_setting)
         #print(json.dumps(per_setting.config, indent=4))
@@ -240,19 +241,19 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         access_profile = None
         if per_setting.has_key('experiment.data_placement'):
             data_placement_type, old_locations, access_profile = per_setting['experiment.data_placement']
-            dp_model = per_setting['experiment.dp_model']
-            dp_old = placement.DataPlacement.new(old_locations)
-            #new_nodes = [n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes]
-            old_nodes = sorted(dp_old.nodes)
-            new_nodes = sorted(list(set([n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes]) - set(dp_old.nodes)))
 
-            access_statistics = placement.PlacementTool.compute_partition_statistics(placement.PlacementTool.load_statistics(access_profile))
-            coarse_grained = True if data_placement_type == placement.DataPlacementType.coarse_partial else False
-            dp_name = per_setting['experiment.dp_name']
             if data_placement_type == placement.DataPlacementType.complete:
-                all_nodes = old_nodes + new_nodes
+                all_nodes = sorted(list(set([n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes])))
                 dp_new = generate_complete_data_placement(all_nodes, old_locations)
             else:
+                dp_model = per_setting['experiment.dp_model']
+
+                dp_old = placement.DataPlacement.new(old_locations)
+                old_nodes = sorted(dp_old.nodes)
+                new_nodes = sorted(list(set([n.get_ip() for n in hpcc_cluster.get_roxie_cluster().nodes]) - set(dp_old.nodes)))
+                access_statistics = placement.PlacementTool.compute_partition_statistics(placement.PlacementTool.load_statistics(access_profile))
+                coarse_grained = True if data_placement_type == placement.DataPlacementType.coarse_partial else False
+                dp_name = per_setting['experiment.dp_name']
                 dp_new = generate_data_placement(old_nodes, new_nodes, old_locations, access_statistics, coarse_grained=coarse_grained, dp_model=dp_model, dp_name=dp_name)
             #print(json.dumps(dp_new.locations, indent=4, sort_keys=True))
             #import sys
@@ -262,7 +263,7 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
 
         data_dir = per_setting['experiment.dataset_dir'] if per_setting.has_key('experiment.dataset_dir') else '/dataset'
         storage_type = per_setting['experiment.storage_type'] if per_setting.has_key('experiment.storage_type') else 'nfs'
-        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=access_profile, dp=dp_new, wait_time=wait_time, check_success=check_success, data_dir=data_dir, storage_type=storage_type, restart_hpcc=restart_hpcc, routing_table=routing_table)
+        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=access_profile, dp=dp_new, wait_time=wait_time, check_success=check_success, data_dir=data_dir, storage_type=storage_type, restart_hpcc=restart_hpcc, routing_table=routing_table, timeout=timeout)
         experiment.workload_config = workload_config  # hack
         yield experiment
 
