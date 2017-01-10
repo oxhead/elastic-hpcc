@@ -64,12 +64,12 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
     #import sys
     #sys.exit(0)
     coarse_data_placement_list = {
-        #"beta": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "beta.json")),
-        #"gamma": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "gamma.json")),
-        #"normal": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "normal.json")),
-        #"powerlaw": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "powerlaw.json")),
-        #"uniform": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "uniform.json")),
-        "complete": (placement.DataPlacementType.complete, partition_locations, os.path.join(script_dir, "placement", "uniform.json")),
+        "beta": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "beta.json")),
+        "gamma": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "gamma.json")),
+        "normal": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "normal.json")),
+        "powerlaw": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "powerlaw.json")),
+        "uniform": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "uniform.json")),
+        #"complete": (placement.DataPlacementType.complete, partition_locations, os.path.join(script_dir, "placement", "uniform.json")),
     }
     fine_data_placement_list = {
         "beta": (placement.DataPlacementType.fine_all, partition_locations, os.path.join(script_dir, "placement", "beta.json")),
@@ -85,22 +85,22 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
 
     workload_distribution_list = {
         "uniform-base": {"type": "uniform"},
-        # "beta-least": {"type": "beta", "alpha": 1, "beta": 1},
-        # "beta-less": {"type": "beta", "alpha": 1.5, "beta": 1.5},
+        "beta-least": {"type": "beta", "alpha": 1, "beta": 1},
+        "beta-less": {"type": "beta", "alpha": 1.5, "beta": 1.5},
         "beta-base": {"type": "beta", "alpha": 2, "beta": 2},
-        # "beta-more": {"type": "beta", "alpha": 4, "beta": 4},
-        # "beta-most": {"type": "beta", "alpha": 5, "beta": 5},
+        "beta-more": {"type": "beta", "alpha": 4, "beta": 4},
+        "beta-most": {"type": "beta", "alpha": 5, "beta": 5},
         "normal-base": {"type": "normal", "loc": 0, "scale": 1},
-        # "powerlaw-least": {"type": "powerlaw", "shape": 2},
-        # "powerlaw-less": {"type": "powerlaw", "shape": 2.5},
+        "powerlaw-least": {"type": "powerlaw", "shape": 2},
+        "powerlaw-less": {"type": "powerlaw", "shape": 2.5},
         "powerlaw-base": {"type": "powerlaw", "shape": 3},
-        # "powerlaw-more": {"type": "powerlaw", "shape": 4},
-        #"powerlaw-most": {"type": "powerlaw", "shape": 5},
-        # "gamma-least": {"type": "gamma", "shape": 7},
-        # "gamma-less": {"type": "gamma", "shape": 6},
+        "powerlaw-more": {"type": "powerlaw", "shape": 4},
+        "powerlaw-most": {"type": "powerlaw", "shape": 5},
+        "gamma-least": {"type": "gamma", "shape": 7},
+        "gamma-less": {"type": "gamma", "shape": 6},
         "gamma-base": {"type": "gamma", "shape": 5},
-        # "gamma-more": {"type": "gamma", "shape": 4},
-        # "gamma-most": {"type": "gamma", "shape": 3},
+        "gamma-more": {"type": "gamma", "shape": 4},
+        "gamma-most": {"type": "gamma", "shape": 3},
     }
 
     variable_setting_list = []
@@ -119,6 +119,8 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
             elif 'fine' in data_placement_type:
                 if not (data_placement_name in workload_name):
                     continue
+        if workload_config['type'] != data_placement_name:
+            continue
         variable_setting_list.append({
             'experiment.output_dir': os.path.join(output_dir, 'w-{}_dp-{}'.format(workload_name, data_placement_name)),
             'experiment.data_placement': data_placement_profile,
@@ -140,7 +142,7 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
             final_variable_setting_list.append(variable_setting_copied)
             # print(variable_setting_copied['experiment.dp_name'])
 
-    for experiment in generate_experiments(default_setting, final_variable_setting_list, experiment_dir=script_dir, timeline_reuse=True, wait_time=1, check_success=check_success, restart_hpcc=True):
+    for experiment in generate_experiments(default_setting, final_variable_setting_list, experiment_dir=script_dir, timeline_reuse=True, wait_time=1, check_success=check_success, restart_hpcc=True, timeout=300):
         print(experiment.output_dir)
         #helper.json_pretty_print(experiment.dp.locations)
         experiment.run()
@@ -149,9 +151,9 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
 
 if __name__ == "__main__":
     dp_set = [
-        ('coarse', 'rainbow'),
+        #('coarse', 'rainbow'),
         #('fine', 'rainbow'),
-        #('fine', 'monochromatic'),
+        ('fine', 'monochromatic'),
     ]
     for dp_type, dp_model in dp_set:
         # dp_type, dp_model, selective_run, check_success
