@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Edited with ConfigMgr on ip 152.14.93.83 on 2016-11-09T15:58:10 -->
+<!-- Edited with ConfigMgr on ip 174.99.121.225 on 2017-01-10T01:51:30 -->
 <Environment>
  <EnvSettings>
   <allow_pgcache_flush>true</allow_pgcache_flush>
@@ -66,6 +66,38 @@
             domain="localdomain"
             name="node002142"
             netAddress="10.25.2.142"/>
+  <Computer computerType="linuxmachine"
+            domain="localdomain"
+            name="node002143"
+            netAddress="10.25.2.143"/>
+  <Computer computerType="linuxmachine"
+            domain="localdomain"
+            name="node002144"
+            netAddress="10.25.2.144"/>
+  <Computer computerType="linuxmachine"
+            domain="localdomain"
+            name="node002145"
+            netAddress="10.25.2.145"/>
+  <Computer computerType="linuxmachine"
+            domain="localdomain"
+            name="node002147"
+            netAddress="10.25.2.147"/>
+  <Computer computerType="linuxmachine"
+            domain="localdomain"
+            name="node002149"
+            netAddress="10.25.2.149"/>
+  <Computer computerType="linuxmachine"
+            domain="localdomain"
+            name="node002151"
+            netAddress="10.25.2.151"/>
+  <Computer computerType="linuxmachine"
+            domain="localdomain"
+            name="node002152"
+            netAddress="10.25.2.152"/>
+  <Computer computerType="linuxmachine"
+            domain="localdomain"
+            name="node002153"
+            netAddress="10.25.2.153"/>
   <ComputerType computerType="linuxmachine"
                 manufacturer="unknown"
                 name="linuxmachine"
@@ -497,10 +529,67 @@
              parallelRequestLimit="20"
              throttleCPULimit="75"
              throttleDelayMs="5000"/>
+   <Instance computer="node002143"
+             directory="/var/lib/HPCCSystems/mydafilesrv"
+             name="s11"
+             netAddress="10.25.2.143"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
+             throttleDelayMs="5000"/>
+   <Instance computer="node002144"
+             directory="/var/lib/HPCCSystems/mydafilesrv"
+             name="s12"
+             netAddress="10.25.2.144"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
+             throttleDelayMs="5000"/>
+   <Instance computer="node002145"
+             directory="/var/lib/HPCCSystems/mydafilesrv"
+             name="s13"
+             netAddress="10.25.2.145"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
+             throttleDelayMs="5000"/>
+   <Instance computer="node002147"
+             directory="/var/lib/HPCCSystems/mydafilesrv"
+             name="s14"
+             netAddress="10.25.2.147"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
+             throttleDelayMs="5000"/>
+   <Instance computer="node002149"
+             directory="/var/lib/HPCCSystems/mydafilesrv"
+             name="s15"
+             netAddress="10.25.2.149"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
+             throttleDelayMs="5000"/>
+   <Instance computer="node002151"
+             directory="/var/lib/HPCCSystems/mydafilesrv"
+             name="s16"
+             netAddress="10.25.2.151"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
+             throttleDelayMs="5000"/>
+   <Instance computer="node002152"
+             directory="/var/lib/HPCCSystems/mydafilesrv"
+             name="s17"
+             netAddress="10.25.2.152"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
+             throttleDelayMs="5000"/>
+   <Instance computer="node002153"
+             directory="/var/lib/HPCCSystems/mydafilesrv"
+             name="s18"
+             netAddress="10.25.2.153"
+             parallelRequestLimit="20"
+             throttleCPULimit="75"
+             throttleDelayMs="5000"/>
   </DafilesrvProcess>
   <DaliServerProcess build="_"
                      buildSet="dali"
                      environment="/etc/HPCCSystems/environment.xml"
+                     forceGroupUpdate="true"
                      name="mydali"
                      numThreads="120"
                      recoverFromIncErrors="true">
@@ -542,6 +631,14 @@
    <Category dir="/dataset/[COMPONENT]" name="data6"/>
    <Category dir="/dataset/[COMPONENT]" name="data7"/>
    <Category dir="/dataset/[COMPONENT]" name="data8"/>
+   <Category dir="/dataset/[COMPONENT]" name="data9"/>
+   <Category dir="/dataset/[COMPONENT]" name="data10"/>
+   <Category dir="/dataset/[COMPONENT]" name="data11"/>
+   <Category dir="/dataset/[COMPONENT]" name="data12"/>
+   <Category dir="/dataset/[COMPONENT]" name="data13"/>
+   <Category dir="/dataset/[COMPONENT]" name="data14"/>
+   <Category dir="/dataset/[COMPONENT]" name="data15"/>
+   <Category dir="/dataset/[COMPONENT]" name="data16"/>
    <!--<Category dir="/var/lib/[NAME]/hpcc-mirror/[COMPONENT]" name="mirror"/>-->
    <Category dir="/var/lib/[NAME]/queries/[INST]" name="query"/>
    <Category dir="/var/lock/[NAME]/[INST]" name="lock"/>
@@ -1005,6 +1102,46 @@
              name="s10"
              netAddress="10.25.2.142"
              program="/opt/HPCCSystems/bin/ftslave"/>
+   <Instance computer="node002143"
+             directory="/var/lib/HPCCSystems/myftslave"
+             name="s11"
+             netAddress="10.25.2.143"
+             program="/opt/HPCCSystems/bin/ftslave"/>
+   <Instance computer="node002144"
+             directory="/var/lib/HPCCSystems/myftslave"
+             name="s12"
+             netAddress="10.25.2.144"
+             program="/opt/HPCCSystems/bin/ftslave"/>
+   <Instance computer="node002145"
+             directory="/var/lib/HPCCSystems/myftslave"
+             name="s13"
+             netAddress="10.25.2.145"
+             program="/opt/HPCCSystems/bin/ftslave"/>
+   <Instance computer="node002147"
+             directory="/var/lib/HPCCSystems/myftslave"
+             name="s14"
+             netAddress="10.25.2.147"
+             program="/opt/HPCCSystems/bin/ftslave"/>
+   <Instance computer="node002149"
+             directory="/var/lib/HPCCSystems/myftslave"
+             name="s15"
+             netAddress="10.25.2.149"
+             program="/opt/HPCCSystems/bin/ftslave"/>
+   <Instance computer="node002151"
+             directory="/var/lib/HPCCSystems/myftslave"
+             name="s16"
+             netAddress="10.25.2.151"
+             program="/opt/HPCCSystems/bin/ftslave"/>
+   <Instance computer="node002152"
+             directory="/var/lib/HPCCSystems/myftslave"
+             name="s17"
+             netAddress="10.25.2.152"
+             program="/opt/HPCCSystems/bin/ftslave"/>
+   <Instance computer="node002153"
+             directory="/var/lib/HPCCSystems/myftslave"
+             name="s18"
+             netAddress="10.25.2.153"
+             program="/opt/HPCCSystems/bin/ftslave"/>
   </FTSlaveProcess>
   <RoxieCluster affinity="0"
                 allFilesDynamic="false"
@@ -1091,7 +1228,7 @@
                 name="myroxie"
                 nodeCacheMem="100"
                 nodeCachePreload="false"
-                numDataCopies="8"
+                numDataCopies="16"
                 parallelAggregate="0"
                 perChannelFlowLimit="10"
                 pingInterval="60"
@@ -1166,6 +1303,14 @@
    <RoxieServerProcess computer="node002138" name="node002138" netAddress="10.25.2.138"/>
    <RoxieServerProcess computer="node002139" name="node002139" netAddress="10.25.2.139"/>
    <RoxieServerProcess computer="node002140" name="node002140" netAddress="10.25.2.140"/>
+   <RoxieServerProcess computer="node002142" name="node002142" netAddress="10.25.2.142"/>
+   <RoxieServerProcess computer="node002143" name="node002143" netAddress="10.25.2.143"/>
+   <RoxieServerProcess computer="node002144" name="node002144" netAddress="10.25.2.144"/>
+   <RoxieServerProcess computer="node002145" name="node002145" netAddress="10.25.2.145"/>
+   <RoxieServerProcess computer="node002147" name="node002147" netAddress="10.25.2.147"/>
+   <RoxieServerProcess computer="node002149" name="node002149" netAddress="10.25.2.149"/>
+   <RoxieServerProcess computer="node002151" name="node002151" netAddress="10.25.2.151"/>
+   <RoxieServerProcess computer="node002152" name="node002152" netAddress="10.25.2.152"/>
   </RoxieCluster>
   <SashaServerProcess autoRestartInterval="0"
                       build="_"
