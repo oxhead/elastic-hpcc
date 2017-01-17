@@ -99,6 +99,7 @@ def calculate_num_replicas(S, af_list):
 
 def adjust_num_replicas(num_replicas_list):
     adjusted_num_replicas_list = [math.floor(n) for n in num_replicas_list]
+    #adjusted_num_replicas_list = [round(n) for n in num_replicas_list]
     adjusted_num_replicas_list = [n if n > 0 else 1 for n in adjusted_num_replicas_list]
     adjusted_weight_list = [num_replicas_list[i] - adjusted_num_replicas_list[i] for i in range(len(num_replicas_list))]
     return adjusted_num_replicas_list, adjusted_weight_list
@@ -124,7 +125,7 @@ def adjust_num_replicas_by_weight(adjusted_num_replicas_list, adjusted_weight_li
     return adjusted_num_replicas_list, adjusted_weight_list
 
 
-def run(M, N, k, t, workload_name='uniform', af_list=[]):
+def run(M, N, k, t, workload_name='uniform', af_list=[], show_output=True):
     '''
     Algorithm:
     0. Assumptions
@@ -163,6 +164,17 @@ def run(M, N, k, t, workload_name='uniform', af_list=[]):
         current_node_id = 0
         dp_records = defaultdict(lambda: [])
         for replica_index in range(len(num_replicas_list)):
+            for num_replica in range(num_replicas_list[replica_index]):
+                # both starts from 1
+                dp_records[current_node_id % num_nodes].append(replica_index)
+                current_node_id += 1
+        return dp_records
+
+    def dp_rainbow2(k, num_nodes, num_replicas_list):
+        sorted_index = sorted(range(len(num_replicas_list)), key=lambda k: -num_replicas_list[k])
+        current_node_id = 0
+        dp_records = defaultdict(lambda: [])
+        for replica_index in sorted_index:
             for num_replica in range(num_replicas_list[replica_index]):
                 # both starts from 1
                 dp_records[current_node_id % num_nodes].append(replica_index)
@@ -244,15 +256,18 @@ def run(M, N, k, t, workload_name='uniform', af_list=[]):
     num_replicas_list = calculate_num_replicas(S, af_list)
     adjusted_num_replicas_list, adjusted_weight_list = adjust_num_replicas(num_replicas_list)
 
-    print("original weight:", _to_string(num_replicas_list))
-    print('before)')
-    print("num_replicas:", _to_string(adjusted_num_replicas_list, is_integer=True))
-    print("weight:", _to_string(adjusted_weight_list))
+    if show_output:
+        print("original weight:", _to_string(num_replicas_list))
+        print('before)')
+        print("num_replicas:", _to_string(adjusted_num_replicas_list, is_integer=True))
+        print("weight:", _to_string(adjusted_weight_list))
     adjusted_num_replicas_list, adjusted_weight_list = adjust_num_replicas_by_weight(adjusted_num_replicas_list, adjusted_weight_list, S)
-    print('after)')
-    print("num_replicas:", _to_string(adjusted_num_replicas_list, is_integer=True))
-    print("weight:", _to_string(adjusted_weight_list))
-    print("-----------------------------------------")
+
+    if show_output:
+        print('after)')
+        print("num_replicas:", _to_string(adjusted_num_replicas_list, is_integer=True))
+        print("weight:", _to_string(adjusted_weight_list))
+        print("-----------------------------------------")
     dp_records = {}
     if t == 'mcs':
         dp_records = dp_rainbow(k, N, adjusted_num_replicas_list)
@@ -260,10 +275,13 @@ def run(M, N, k, t, workload_name='uniform', af_list=[]):
         dp_records = dp_maximize_load_balanced(k, N, adjusted_num_replicas_list, af_list)
     elif t == 'rainbow':
         dp_records = dp_rainbow(k, N, adjusted_num_replicas_list)
+    elif t == 'rainbow2':
+        dp_records = dp_rainbow2(k, N, adjusted_num_replicas_list)
     elif t == 'monochromatic':
         dp_records = dp_monochromatic(k, N, adjusted_num_replicas_list)
 
-    _print_placement(dp_records, adjusted_num_replicas_list, af_list)
+    if show_output:
+        _print_placement(dp_records, adjusted_num_replicas_list, af_list)
     return dp_records, adjusted_num_replicas_list
     #print(json.dumps(dp_records, indent=4, sort_keys=True))
 
