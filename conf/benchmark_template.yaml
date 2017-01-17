@@ -10,6 +10,7 @@ controller:
     manager:
         port: 9996
 driver:
+    num_instances: 8
     num_processors: 2
     num_workers: 32
     query_timeout: 120
@@ -19,5 +20,7 @@ driver:
         - 10.25.3.93
         - 10.25.3.94
         - 10.25.3.96
-        #- 10.25.3.97
-        #- 10.25.3.98
+        - 10.25.3.97
+        - 10.25.3.98
+        - 10.25.2.167
+        - 10.25.2.168

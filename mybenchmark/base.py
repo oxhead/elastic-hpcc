@@ -7,6 +7,8 @@ import hashlib
 import shutil
 import itertools
 
+import executor
+
 from elastic import init
 from elastic.benchmark.config import BaseConfig
 from elastic.benchmark.roxie import *
@@ -87,7 +89,7 @@ class ExperimentConfig(BaseConfig):
 
 
 class Experiment:
-    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=None, dp=None, wait_time=60, check_success=True, data_dir='/dataset', storage_type='nfs', restart_hpcc=False, routing_table={}, timeout=300):
+    def __init__(self, experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=None, dp=None, wait_time=60, check_success=True, data_dir='/dataset', storage_type='nfs', restart_hpcc=False, routing_table={}, timeout=300, cluster_config=None, deploy_config=False):
         self.experiment_id = experiment_id
         self.benchmark_config = benchmark_config
         self.routing_table = routing_table
@@ -103,8 +105,14 @@ class Experiment:
         self.storage_type = storage_type
         self.restart_hpcc = restart_hpcc
         self.timeout = timeout
+        self.cluster_config = cluster_config
+        self.deploy_config = deploy_config
 
     def pre_run(self):
+        if self.deploy_config and self.cluster_config is not None:
+            print("Deploying HPCC configuration")
+            executor.execute("hpcc deploy_config -c {}".format(self.cluster_config))
+            executor.execute("hpcc --reload print_topology")
         if self.restart_hpcc:
             self.hpcc_service.stop()
             self.hpcc_service.clear_log()  # to get the right counter
@@ -125,6 +133,8 @@ class Experiment:
                 roxie.switch_data_placement(self.dp, data_dir=self.data_dir, storage_type=self.storage_type)
             else:
                 print("No need to switch data placement")
+        #import sys
+        #sys.exit(0)
         if self.restart_hpcc:
             self.hpcc_service.start()
 
@@ -217,12 +227,15 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         #sys.exit(0)
 
         experiment_id = per_setting['experiment.id']
+        print(per_setting['cluster.target'])
         hpcc_cluster = HPCCCluster.parse_config(per_setting['cluster.target'])
         benchmark_config = BenchmarkConfig.parse_file(per_setting['cluster.benchmark'])
         #print("before", benchmark_config.config)
+        num_benchmark_instances = int(per_setting['experiment.benchmark_instances'])
         num_benchmark_processors_per_client = int(per_setting['experiment.benchmark_processors'])
         num_benchmark_clients = int(per_setting['experiment.benchmark_clients'])
         num_benchmark_concurrency = int(per_setting['experiment.benchmark_concurrency'])
+        benchmark_config.set_config("driver.num_instances", num_benchmark_instances)
         benchmark_config.set_config("driver.num_processors", num_benchmark_processors_per_client)
         benchmark_config.set_config("driver.hosts", benchmark_config.lookup_config("driver.hosts")[:num_benchmark_clients])
         benchmark_config.set_config("driver.num_workers", num_benchmark_concurrency)
@@ -263,7 +276,24 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
 
         data_dir = per_setting['experiment.dataset_dir'] if per_setting.has_key('experiment.dataset_dir') else '/dataset'
         storage_type = per_setting['experiment.storage_type'] if per_setting.has_key('experiment.storage_type') else 'nfs'
-        experiment = Experiment(experiment_id, benchmark_config, hpcc_cluster, workload_timeline, output_dir, wp=access_profile, dp=dp_new, wait_time=wait_time, check_success=check_success, data_dir=data_dir, storage_type=storage_type, restart_hpcc=restart_hpcc, routing_table=routing_table, timeout=timeout)
+        experiment = Experiment(
+            experiment_id,
+            benchmark_config,
+            hpcc_cluster,
+            workload_timeline,
+            output_dir,
+            wp=access_profile,
+            dp=dp_new,
+            wait_time=wait_time,
+            check_success=check_success,
+            data_dir=data_dir,
+            storage_type=storage_type,
+            restart_hpcc=restart_hpcc,
+            routing_table=routing_table,
+            timeout=timeout,
+            cluster_config=per_setting['cluster.target'],
+            deploy_config=per_setting['cluster.deploy_config']
+        )
         experiment.workload_config = workload_config  # hack
         yield experiment
 

@@ -34,6 +34,7 @@ class BenchmarkConfig(config.BaseConfig):
     CONTROLLER_REPORTER_PORT = "controller.reporter.port"
     CONTROLLER_MANAGER_PORT = "controller.manager.port"
 
+    DRIVER_NUM_INSTANCES = "driver.num_instances"
     DRIVER_NUM_PROCESSORS = "driver.num_processors"
     DRIVER_NUM_WORKER = "driver.num_workers"
     DRIVER_QUERY_TIMEOUT = "driver.query_timeout"
@@ -94,6 +95,9 @@ class BenchmarkController(BenchmarkNode):
             self.logger.info("Driver {} is ready".format(driver_id))
             self.ready_drivers += 1
 
+        def set_num_drivers(self, num_drivers):
+            self.num_drivers = num_drivers
+
         def reset_ready_drivers(self):
             self.ready_drivers = 0
 
@@ -126,6 +130,12 @@ class BenchmarkController(BenchmarkNode):
         def get_workload_record(self, workload_id):
             return self.workload_db[str(workload_id)]
 
+        def get_current_queue_size(self):
+            queue_size = 0
+            for node_bucket_id, node_bucket in self.node_buckets.items():
+                queue_size += node_bucket.qsize()
+            return queue_size
+
         def retrieve_requests(self, node_bucket_id, num_requests):
             # self.logger.info("Retrieve from node bucket {} for {} requests".format(node_bucket_id, num_requests))
             if len(self.node_buckets) < 1:
@@ -153,6 +163,9 @@ class BenchmarkController(BenchmarkNode):
                 #for request in request_list:
                 #    self.logger.info("xid={}, xtype={}".format(request.xid, request.xtype))
                 #self.logger.info('Get {} requests from node bucket {}'.format(len(request_list)-1, node_bucket_id))
+                self.logger.info("Current queue size={}".format(self.get_current_queue_size()))
+                num_requests = len(request_list) if request_list[-1].xtype != RequestType.run else len(request_list) - 1
+                self.current_workload_record.record_dispatch_result(node_bucket_id, num_requests)
                 return request_list
 
         def submit(self, workload):
@@ -160,7 +173,8 @@ class BenchmarkController(BenchmarkNode):
             if (self.current_workload_record is not None) and (not self.current_workload_record.is_completed()):
                 raise Exception("need to wait the current workload to complete")
             new_workload_id = len(self.workload_db)
-            self.current_workload_record = BenchmarkController.WorkloadRecord(new_workload_id, workload)
+            # the number of dirvers should be correct at this time
+            self.current_workload_record = BenchmarkController.WorkloadRecord(new_workload_id, workload, self.cluster_manager.num_drivers)
             self.workload_db[str(new_workload_id)] = self.current_workload_record
 
             # here sync with all driver nodes
@@ -239,7 +253,7 @@ class BenchmarkController(BenchmarkNode):
             self.current_workload_record.completed_dispatch()
 
     class WorkloadRecord:
-        def __init__(self, workload_id, workload):
+        def __init__(self, workload_id, workload, num_drivers):
             self.time_start = None
             self.time_last_report = None
             self.workload_id = workload_id
@@ -258,7 +272,13 @@ class BenchmarkController(BenchmarkNode):
             self.logger = logging.getLogger(__name__)
             self.statistics_lock = BoundedSemaphore(1)
             self.greenlet_record = None
+            self.num_drivers = num_drivers
+            self.ready_drivers = {}
             self.report_records = {}
+            self.dispatch_records = {}
+            for driver_id in range(1, self.num_drivers+1):
+                self.report_records[driver_id] = 0
+                self.dispatch_records[driver_id] = 0
 
         def start(self):
             self.logger.info("Workload {} is started".format(self.workload_id))
@@ -307,11 +327,17 @@ class BenchmarkController(BenchmarkNode):
                 if timeslot not in self.timeline_failure:
                     self.timeline_failure[timeslot] = 0
                 self.timeline_failure[timeslot] += 1
+            self.report_records[driver_id] += 1
+
+        def record_dispatch_result(self, driver_id, num):
+            self.dispatch_records[driver_id] += num
 
         def is_completed(self):
             """jobs may all complete before dispatch finish"""
             self.logger.info("# dispatch completed: %s", self.dispatch_completed)
             self.logger.info("@ num_queries={}, num_finished_jobs={}".format(self.query_count, self.num_finished_jobs))
+            for driver_id in sorted(self.dispatch_records.keys()):
+                self.logger.info("driver_id={}, dispatch={}, reports={}".format(driver_id, self.dispatch_records[driver_id], self.report_records[driver_id]))
             return self.dispatch_completed and (self.query_count == self.num_finished_jobs)
 
         def is_started(self):
@@ -403,11 +429,11 @@ class BenchmarkController(BenchmarkNode):
             self.controller.cluster_manager.heartbeat_from_driver(driver_id, status)
 
         def retrieve_jobs(self, driver_id, num_requests):
-            self.logger.info('Driver {} asks for {} request'.format(driver_id, num_requests))
+            #self.logger.info('Driver {} asks for {} request'.format(driver_id, num_requests))
             # driver_id == node_bucket_id
             try:
                 request_list = self.controller.workload_manager.retrieve_requests(driver_id, num_requests)
-                num_requests = len(request_list) if request_list[-1].xtype != RequestType.run else len(request_list) - 1
+
                 if num_requests > 0:
                     self.logger.info("Got {} requests from node bucket {}".format(len(request_list), driver_id))
                 return request_list
@@ -431,6 +457,7 @@ class BenchmarkController(BenchmarkNode):
                 SendProtocolHeader.workload_statistics: self.workload_statistics,
                 SendProtocolHeader.workload_status: self.workload_status,
                 SendProtocolHeader.routing_table_upload: self.routing_table_upload,
+                SendProtocolHeader.config_num_drivers: self.config_num_drivers,
             }
 
         def process(self):
@@ -448,6 +475,10 @@ class BenchmarkController(BenchmarkNode):
         def routing_table_upload(self, routing_table):
             self.logger.info("@ routing table=%s", json.dumps(routing_table, indent=4))
             self.controller.workload_manager.set_routing_table(routing_table)
+
+        def config_num_drivers(self, num_drivers):
+            self.logger.info("# config num_drivers=%s", num_drivers)
+            self.controller.cluster_manager.set_num_drivers(num_drivers)
 
         def workload_submit(self, workload):
             self.logger.info("@ workload=%s", workload)

@@ -28,6 +28,7 @@ class SendProtocolHeader(Enum):
     report_done = 31
 
     routing_table_upload = 41
+    config_num_drivers = 42
 
 
 class ReceiveProtocolHeader(Enum):
@@ -123,6 +124,10 @@ class BenchmarkClientProtocol(BenchmarkBaseProtocol):
     def routing_table_upload(self, routing_table):
         self.logger.info("upload routing table")
         return self._send(SendProtocolHeader.routing_table_upload, routing_table)
+
+    def config_num_drivers(self, num_dirvers):
+        self.logger.info("config num of drivers = ".format(num_dirvers))
+        return self._send(SendProtocolHeader.config_num_drivers, num_dirvers)
 
     def workload_submit(self, workload):
         self.logger.info("submit workload")

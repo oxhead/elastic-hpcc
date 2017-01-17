@@ -145,12 +145,12 @@ def service(ctx, action, component):
             # needs to start the master for avoiding failure when the cluster size is more than 8
             #if action == 'start':
             #    RemoteCommand(ctx.obj['topology']['esp'][0][0], "sudo service hpcc-init {}".format(action), silent=False, check=True).start()
-            with parallel.CommandAgent() as agent:
+            with parallel.CommandAgent(concurrency=len(ctx.obj['host_list'])) as agent:
                 agent.submit_remote_commands(ctx.obj['host_list'], "sudo service dafilesrv {}".format(action), check=False, silent=True, capture=True)
-            with parallel.CommandAgent() as agent:
+            with parallel.CommandAgent(concurrency=len(ctx.obj['host_list'])) as agent:
                     agent.submit_remote_commands(ctx.obj['host_list'], "sudo service hpcc-init {}".format(action), check=False, silent=True, capture=True)
             if action == 'stop':
-                with parallel.CommandAgent() as agent:
+                with parallel.CommandAgent(concurrency=len(ctx.obj['host_list'])) as agent:
                     agent.submit_remote_commands(ctx.obj['host_list'], "sudo pkill -9 dafilesrv; sudo pkill -9 roxie", check=False, silent=True, capture=True)
 
 @cli.command()
@@ -341,5 +341,5 @@ def increase_start_timeout(ctx):
     """
     for host in ctx.obj['host_list']:
         hpcc_config = "/opt/HPCCSystems/etc/init.d/hpcc_common"
-        execute('ssh -t {} sudo sed -i "s/WAITTIME=120/WAITTIME=500/" {}'.format(host, hpcc_config))
+        execute('ssh -t {} sudo sed -i "s/    local WAITTIME=.*$/    local WAITTIME=1200/" {}'.format(host, hpcc_config))
 

@@ -20,13 +20,20 @@ class BenchmarkService:
         self.commander = BenchmarkCommander(self.config.get_controller(), self.config.lookup_config(BenchmarkConfig.CONTROLLER_CLIENT_PORT))
         self.logger = logging.getLogger('.'.join([__name__, self.__class__.__name__]))
         self.num_processor_per_driver = self.config.lookup_config(BenchmarkConfig.DRIVER_NUM_PROCESSORS, 1)
+        self.num_instances = self.config.lookup_config(BenchmarkConfig.DRIVER_NUM_INSTANCES, 8)
         # assign driver id
         self.driver_instances = {}
         driver_counter = 0
-        for driver_node in self.config.get_drivers():
-            for processor in range(self.num_processor_per_driver):
-                driver_counter += 1
-                self.driver_instances[driver_counter] = driver_node
+        for processor in range(self.num_processor_per_driver):
+            for driver_node in self.config.get_drivers():
+                if driver_counter < self.num_instances:
+                    driver_counter += 1
+                    self.driver_instances[driver_counter] = driver_node
+                else:
+                    pass
+        print(self.driver_instances)
+        if driver_counter < self.num_instances:
+            raise Exception("Not enough driver instances to provision")
 
     def export_config(self, output_path):
         self.config.to_file(output_path)
@@ -136,3 +143,7 @@ class BenchmarkService:
     def upload_routing_table(self, routing_table):
         # self.logger.debug(json.dumps(routing_table, indent=4))
         return self.commander.routing_table_upload(routing_table)
+
+    def config_num_drivers(self, num_drivers):
+        # self.logger.debug(json.dumps(routing_table, indent=4))
+        return self.commander.config_num_drivers(num_drivers)

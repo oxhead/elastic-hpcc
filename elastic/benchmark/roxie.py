@@ -34,6 +34,7 @@ class RoxieBenchmark(base.Benchmark):
         self.benchmark_service.stop()
         self.benchmark_service.start()
         self.benchmark_service.upload_routing_table(self.routing_table)
+        self.benchmark_service.config_num_drivers(len(self.hpcc_cluster.get_roxie_cluster().get_nodes()))
 
     def post_run(self):
         self.logger.info("Post-benchmark")
