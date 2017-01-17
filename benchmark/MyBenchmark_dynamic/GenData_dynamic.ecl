@@ -10,8 +10,11 @@ STRING15 input_id := '1' : STORED('id');
 // 1,000,000 Person (parent) records and all their associated Accounts (children)
 // by starting with 1000 first names and 1000 last names
 
-P_Mult1       := 1085; //creates 128MB partition over 4 nodes
-P_Mult2       := 1085;
+// 1085 = 128MB
+// 3068 = 1GB
+
+P_Mult1       := 3068; //creates 128MB partition over 4 nodes
+P_Mult2       := 3068;
 TotalParents  := P_Mult1 * P_Mult2;
 //TotalChildren := 500000; //1000000
 
