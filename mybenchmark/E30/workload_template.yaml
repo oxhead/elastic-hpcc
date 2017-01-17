@@ -1,0 +1,36 @@
+workload:
+    type: constant
+    num_queries: 100
+    period: 10
+    dispatch_mode: batch  # once | batch
+    distribution:
+        id: 1
+        type: uniform
+        kind: nature
+        key_file: /home/chsu6/elastic-hpcc/benchmark/dataset/firstname_list_2000.txt
+    selection:
+        type: pareto
+        kind: chunk
+        alpha: 3
+    endpoints:
+        - http://10.25.2.131:9876
+        - http://10.25.2.132:9876
+        - http://10.25.2.133:9876
+        - http://10.25.2.134:9876
+        - http://10.25.2.136:9876
+        - http://10.25.2.138:9876
+        - http://10.25.2.139:9876
+        - http://10.25.2.140:9876
+        - http://10.25.2.142:9876
+        - http://10.25.2.143:9876
+        - http://10.25.2.144:9876
+        - http://10.25.2.145:9876
+        - http://10.25.2.147:9876
+        - http://10.25.2.149:9876
+        - http://10.25.2.151:9876
+        - http://10.25.2.152:9876
+    applications:
+        sequential_search_firstname:
+            distribution_id: 1
+            query_name: sequential_search_firstname_[1-128]
+            query_key: firstname

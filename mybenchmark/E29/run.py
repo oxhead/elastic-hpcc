@@ -44,6 +44,12 @@ def calculate_skew_factor_myown_percentage(access_list):
     avg = np.mean(access_list)
     return sum([abs(n-avg) for n in access_list]) / avg
 
+def calculate_bottleneck(access_list):
+    import numpy as np
+    load_avg = np.mean(access_list)
+    load_max = max(access_list)
+    return load_max / load_avg
+
 def calculate_load(dp_records, num_replicas_list, af_list):
     partition_load_records = dp_simulation.calculate_partition_loads(num_replicas_list, af_list)
     node_load_records = defaultdict(lambda: 0)
@@ -75,12 +81,23 @@ def generate_workload(workload_size, num_partitions, workload):
 
 def test1():
     workload_list = {
-        "uniform": {"type": "uniform"},
-        "beta": {"type": "beta", "alpha": 2, "beta": 2},
-        #"normal": {"type": "normal", "loc": 0, "scale": 1},
-        "normal": {"type": "normal"},
-        "powerlaw": {"type": "powerlaw", "shape": 10},
-        "gamma": {"type": "gamma", "shape": 5}
+        "uniform-base": {"type": "uniform"},
+        #"beta-least": {"type": "beta", "alpha": 1, "beta": 1},
+        #"beta-less": {"type": "beta", "alpha": 1.5, "beta": 1.5},
+        "beta-base": {"type": "beta", "alpha": 2, "beta": 2},
+        #"beta-more": {"type": "beta", "alpha": 4, "beta": 4},
+        #"beta-most": {"type": "beta", "alpha": 5, "beta": 5},
+        #"normal-base": {"type": "normal", "loc": 0, "scale": 1},
+        #"powerlaw-least": {"type": "powerlaw", "shape": 2},
+        #"powerlaw-less": {"type": "powerlaw", "shape": 2.5},
+        "powerlaw-base": {"type": "powerlaw", "shape": 3},
+        #"powerlaw-more": {"type": "powerlaw", "shape": 4},
+        #"powerlaw-most": {"type": "powerlaw", "shape": 5},
+        #"gamma-least": {"type": "gamma", "shape": 7},
+        #"gamma-less": {"type": "gamma", "shape": 6},
+        #"gamma-base": {"type": "gamma", "shape": 5},
+        "gamma-more": {"type": "gamma", "shape": 4},
+        "gamma-most": {"type": "gamma", "shape": 3},
     }
     workload_type = 'gamma'
     generate_workload(16, workload_list[workload_type])
@@ -88,19 +105,34 @@ def test1():
 
 def analyze_skew(M, N, k, scheme, workload_type, workload_size):
     workload_list = {
-        "uniform": {"type": "uniform"},
-        "beta": {"type": "beta", "alpha": 2, "beta": 2},
-        "normal": {"type": "normal", "loc": 0, "scale": 1},
-        "powerlaw": {"type": "powerlaw", "shape": 3},
-        "gamma": {"type": "gamma", "shape": 5}
+        "uniform-base": {"type": "uniform"},
+        #"beta-least": {"type": "beta", "alpha": 1, "beta": 1},
+        #"beta-less": {"type": "beta", "alpha": 1.5, "beta": 1.5},
+        "beta-base": {"type": "beta", "alpha": 2, "beta": 2},
+        #"beta-more": {"type": "beta", "alpha": 4, "beta": 4},
+        #"beta-most": {"type": "beta", "alpha": 5, "beta": 5},
+        "normal-base": {"type": "normal", "loc": 0, "scale": 1},
+        #"powerlaw-least": {"type": "powerlaw", "shape": 2},
+        #"powerlaw-less": {"type": "powerlaw", "shape": 2.5},
+        "powerlaw-base": {"type": "powerlaw", "shape": 3},
+        #"powerlaw-more": {"type": "powerlaw", "shape": 4},
+        #"powerlaw-most": {"type": "powerlaw", "shape": 5},
+        #"gamma-least": {"type": "gamma", "shape": 7},
+        #"gamma-less": {"type": "gamma", "shape": 6},
+        "gamma-base": {"type": "gamma", "shape": 5},
+        #"gamma-more": {"type": "gamma", "shape": 4},
+        #"gamma-most": {"type": "gamma", "shape": 3},
     }
 
     num_partitions = M * k
     af_list = generate_workload(workload_size, num_partitions, workload_list[workload_type])
 
-    dp_records, num_replicas_list = dp_simulation.run(M, N, k, scheme, af_list=af_list, show_output=False)
+    dp_records, num_replicas_list = dp_simulation.run(M, N, k, scheme, af_list=af_list, show_output=True)
 
     load_records = calculate_load(dp_records, num_replicas_list, af_list)
+    print('#######################')
+    print(json.dumps(load_records, indent=4))
+    print('#######################')
     #print(load_records)
     #print("Skew:", calculate_skew_factor(list(load_records.values())))
     #skew_score = calculate_skew_factor(list(load_records.values()))
@@ -114,39 +146,46 @@ def analyze_skew(M, N, k, scheme, workload_type, workload_size):
     #return np.std(list(load_records.values())) / sum(load_records.values())
     #return np.std(list(load_records.values()))
     #return calculate_skew_factor_myown_percentage(list(load_records.values()))
-    return calculate_skew_factor(list(load_records.values()))
+    #return calculate_skew_factor(list(load_records.values()))
+    return calculate_bottleneck(list(load_records.values()))
 
 
 def main():
     init.setup_logging(default_level=logging.DEBUG, config_path="conf/logging.yaml", log_dir="logs", component="simulation")
     script_dir = os.path.dirname(os.path.realpath(__file__))
 
-    iterations = 100
+    iterations = 1
 
     M = 4
     N = 8
-    scheme_list = ['rainbow', 'monochromatic']
-    #scheme_list = ['rainbow']
+    #scheme_list = ['rainbow', 'monochromatic']
+    scheme_list = ['rainbow']
     workload_type_list = ['uniform', 'beta', 'normal', 'powerlaw', 'gamma']
-    #workload_type_list = ['normal', 'powerlaw', 'gamma']
+    #workload_type_list = ['powerlaw']
+    #workload_skew_list = ['least', 'less', 'base', 'more', 'most']
+    workload_skew_list = ['base']
+
     workload_size = 30000
-    #k_list = [1, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
-    k_list = [1, 4, 8, 16, 32, 64, 128]
-    #k_list = [1, 4, 8]
+    #k_list = [1, 4, 8, 16, 32, 64, 128]
+    #k_list = [1, 4, 8, 16]
+    k_list = [4, 8]
 
     # start multi-iteration simulation
     for scheme in scheme_list:
         skew_records = {}
         for k in k_list:
             skew_records[k] = {}
-            for workload_type in workload_type_list:
+            for workload_type, workload_skew in itertools.product(workload_type_list, workload_skew_list):
+                if workload_type in ['uniform', 'normal'] and workload_skew is not 'base':
+                    continue
+                workload_name = "{}-{}".format(workload_type, workload_skew)
                 skew_score_list = []
                 for i in range(iterations):
-                    skew_score = analyze_skew(M, N, k, scheme, workload_type, workload_size)
+                    skew_score = analyze_skew(M, N, k, scheme, workload_name, workload_size)
                     skew_score_list.append(skew_score)
-                skew_records[k][workload_type] = sum(skew_score_list) / len(skew_score_list)
+                skew_records[k][workload_name] = sum(skew_score_list) / len(skew_score_list)
         print('=================')
-        print(json.dumps(skew_records, indent=True))
+        print(json.dumps(skew_records, indent=True, sort_keys=True))
 
         default_setting = ExperimentConfig.new()
         default_setting.set_config('experiment.id', 'E29')
@@ -154,7 +193,8 @@ def main():
             default_setting['experiment.result_dir'],
             default_setting['experiment.id']
         )
-        output_path = os.path.join(output_dir, "x_M{}_N{}_k{}_s{}_{}.json".format(M, N, k_list[-1], workload_size, scheme))
+        #output_path = os.path.join(output_dir, "z_M{}_N{}_k{}_s{}_{}.json".format(M, N, k_list[-1], workload_size, scheme))
+        output_path = os.path.join(output_dir, "z_M{}_N{}_k{}_s{}_{}.json".format(M, N, k_list[-1], workload_size, scheme))
 
         executor.execute("mkdir -p %s" % output_dir)
         with open(output_path, 'w') as f:
