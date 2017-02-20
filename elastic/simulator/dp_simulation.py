@@ -97,32 +97,43 @@ def calculate_num_replicas(S, af_list):
     return num_replica_list
 
 
-def adjust_num_replicas(num_replicas_list):
-    adjusted_num_replicas_list = [math.floor(n) for n in num_replicas_list]
-    #adjusted_num_replicas_list = [round(n) for n in num_replicas_list]
+def generate_minimum_replica_list(af_list, S):
+    num_replicas_list = calculate_num_replicas(S, af_list)
+    adjusted_num_replicas_list = [round(n) for n in num_replicas_list]
     adjusted_num_replicas_list = [n if n > 0 else 1 for n in adjusted_num_replicas_list]
-    adjusted_weight_list = [num_replicas_list[i] - adjusted_num_replicas_list[i] for i in range(len(num_replicas_list))]
-    return adjusted_num_replicas_list, adjusted_weight_list
+    #adjusted_weight_list = [num_replicas_list[i] - adjusted_num_replicas_list[i] for i in range(len(num_replicas_list))]
+    return adjusted_num_replicas_list
 
 
-def adjust_num_replicas_by_weight(adjusted_num_replicas_list, adjusted_weight_list, num_slots):
+def adjust_num_replicas_by_weight(af_list, replica_list, num_slots):
+    weight_list = [af_list[i] / replica_list[i] for i in range(len(af_list))]
     # this should be the only case?
-    while sum(adjusted_num_replicas_list) < num_slots:
-        max_value = max(adjusted_weight_list)
-        max_index = adjusted_weight_list.index(max_value)
-        adjusted_num_replicas_list[max_index] += 1
-        adjusted_weight_list[max_index] -= 1
+    while sum(replica_list) < num_slots:
+        # the highest will be zero for its index
+        sorted_index = sorted(range(len(weight_list)), key=lambda k: -weight_list[k])
+        max_index = sorted_index.index(0)
+        replica_list[max_index] += 1
+        weight_list[max_index] = af_list[max_index] / replica_list[max_index]
 
-    while sum(adjusted_num_replicas_list) > num_slots:
+    while sum(replica_list) > num_slots:
         min_value = float('inf')
-        for i in range(len(adjusted_num_replicas_list)):
-            if adjusted_weight_list[i] < min_value and adjusted_num_replicas_list[i] > 1:
-                min_value = adjusted_weight_list[i]
-                min_index = i
-        adjusted_num_replicas_list[min_index] -= 1
-        adjusted_weight_list[min_index] += 1
+        # the lowest will be zero for its index
+        sorted_index = sorted(range(len(weight_list)), key=lambda k: weight_list[k])
+        #print('inside loop')
+        #print(replica_list)
+        #print(sorted_index)
+        min_index = -1
+        for index in sorted_index:
+            if replica_list[index] <= 1:
+                continue
+            else:
+                min_index = index
+                break
+        #print("select", min_index)
+        replica_list[min_index] -= 1
+        weight_list[min_index] = af_list[min_index] / replica_list[min_index]
 
-    return adjusted_num_replicas_list, adjusted_weight_list
+    return replica_list
 
 
 def run(M, N, k, t, workload_name='uniform', af_list=[], show_output=True):
@@ -160,7 +171,7 @@ def run(M, N, k, t, workload_name='uniform', af_list=[], show_output=True):
     '''
 
 
-    def dp_rainbow(k, num_nodes, num_replicas_list):
+    def dp_rainbow2(k, num_nodes, num_replicas_list):
         current_node_id = 0
         dp_records = defaultdict(lambda: [])
         for replica_index in range(len(num_replicas_list)):
@@ -170,40 +181,53 @@ def run(M, N, k, t, workload_name='uniform', af_list=[], show_output=True):
                 current_node_id += 1
         return dp_records
 
-    def dp_rainbow2(k, num_nodes, num_replicas_list):
-        sorted_index = sorted(range(len(num_replicas_list)), key=lambda k: -num_replicas_list[k])
+    def dp_rainbow(k, num_nodes, num_replicas_list, weight_list):
+        sorted_index = sorted(range(len(weight_list)), key=lambda k: -weight_list[k])
         current_node_id = 0
         dp_records = defaultdict(lambda: [])
         for replica_index in sorted_index:
             for num_replica in range(num_replicas_list[replica_index]):
                 # both starts from 1
                 dp_records[current_node_id % num_nodes].append(replica_index)
+                #print("P{} -> N{}".format(replica_index+1, current_node_id % num_nodes))
                 current_node_id += 1
         return dp_records
 
-    def dp_monochromatic(k, num_nodes, num_replicas_list):
-        sorted_replicas_index = sorted(range(len(num_replicas_list)), reverse=True, key=lambda k: num_replicas_list[k])
-        num_replicas_remaining = copy.copy(num_replicas_list)
-        node_replicas_remaining = [k] * num_nodes
-        dp_records = defaultdict(lambda: [])
-        current_replica_index = 0
-        while sum(node_replicas_remaining) > 0:
-            while num_replicas_remaining[sorted_replicas_index[current_replica_index]] > 0:
-                sorted_node_index = sorted(range(len(node_replicas_remaining)), reverse=True, key=lambda k: node_replicas_remaining[k])
-                # always picks the first one with large remaining slots
-                node_id = sorted_node_index[0]
-                num_replicas_allowed = k - len(dp_records[node_id])
+    def dp_monochromatic(k, num_nodes, num_replicas_list, weight_list):
+        #print("replica_list", num_replicas_list)
+        #print("weight_list", weight_list)
+        sorted_index = sorted(range(len(weight_list)), key=lambda k: -weight_list[k])
+        #print("sorted_index", sorted_index)
+        dp_records = {}
+        for i in range(num_nodes):
+            dp_records[i] = []
 
-                for _ in range(min(num_replicas_allowed, num_replicas_remaining[sorted_replicas_index[current_replica_index]])):
-                    dp_records[node_id].append(sorted_replicas_index[current_replica_index])
-                    # can be optimized
-                    num_replicas_allowed -= 1
-                    node_replicas_remaining[node_id] -= 1
-                    num_replicas_remaining[sorted_replicas_index[current_replica_index]] -= 1
-                if num_replicas_remaining[sorted_replicas_index[current_replica_index]] <= 0:
-                    current_replica_index += 1
-                if num_replicas_allowed <= 0:
-                    break  # move to the next node
+        for replica_index in sorted_index:
+            #print('\treplica_index', replica_index)
+            num_replicas_remaining = num_replicas_list[replica_index]
+            #print('\tremaining', num_replicas_remaining)
+            while num_replicas_remaining > 0:
+                #print(json.dumps(dp_records, indent=4))
+                sorted_index_by_free_slots = sorted(range(len(dp_records)), key=lambda z: (-(k-len(dp_records[z])), sum([weight_list[replica_index] for replica_index in dp_records[z]])))
+                #print('\t\t# free_slot_index', sorted_index_by_free_slots)
+                for node_index in sorted_index_by_free_slots:
+                    #print("\t\t\tnode_index", node_index)
+                    #print("\t\t\t$ actual remaining", num_replicas_remaining)
+                    if num_replicas_remaining <= 0:
+                        break
+                    num_free_slots = k-len(dp_records[node_index])
+                    #print('\t\t\t@ free_slots', num_free_slots)
+                    if num_free_slots >= num_replicas_remaining:
+                        for i in range(num_replicas_remaining):
+                            #print('\t\t\t\tputting...')
+                            dp_records[node_index].append(replica_index)
+                            num_replicas_remaining -= 1
+                            #print(json.dumps(dp_records, indent=4))
+                        break
+                    else:
+                        for i in range(num_free_slots):
+                            dp_records[node_index].append(replica_index)
+                            num_replicas_remaining -= 1
         return dp_records
 
     def dp_maximize_load_balanced(k, num_nodes, num_replicas_list, af_list):
@@ -253,36 +277,39 @@ def run(M, N, k, t, workload_name='uniform', af_list=[], show_output=True):
     S = N * k
 
     # calculate the weight
-    num_replicas_list = calculate_num_replicas(S, af_list)
-    adjusted_num_replicas_list, adjusted_weight_list = adjust_num_replicas(num_replicas_list)
+
+    minimum_replicas_list = generate_minimum_replica_list(af_list, S)
+    # expected load per partition
+    minimum_weight_list = [af_list[i] / minimum_replicas_list[i] for i in range(len(af_list))]
 
     if show_output:
-        print("original weight:", _to_string(num_replicas_list))
         print('before)')
-        print("num_replicas:", _to_string(adjusted_num_replicas_list, is_integer=True))
-        print("weight:", _to_string(adjusted_weight_list))
-    adjusted_num_replicas_list, adjusted_weight_list = adjust_num_replicas_by_weight(adjusted_num_replicas_list, adjusted_weight_list, S)
+        print("num_replicas:", _to_string(minimum_replicas_list, is_integer=True))
+        print("weight:", _to_string(minimum_weight_list))
+
+    adjusted_replicas_list = adjust_num_replicas_by_weight(af_list, minimum_replicas_list, S)
+    adjusted_weight_list = [af_list[i] / adjusted_replicas_list[i] for i in range(len(af_list))]
 
     if show_output:
         print('after)')
-        print("num_replicas:", _to_string(adjusted_num_replicas_list, is_integer=True))
+        print("num_replicas:", _to_string(adjusted_replicas_list, is_integer=True))
         print("weight:", _to_string(adjusted_weight_list))
         print("-----------------------------------------")
     dp_records = {}
     if t == 'mcs':
-        dp_records = dp_rainbow(k, N, adjusted_num_replicas_list)
+        dp_records = dp_rainbow(k, N, adjusted_replicas_list)
     elif t == 'mlb':
-        dp_records = dp_maximize_load_balanced(k, N, adjusted_num_replicas_list, af_list)
+        dp_records = dp_maximize_load_balanced(k, N, adjusted_replicas_list, af_list)
     elif t == 'rainbow':
-        dp_records = dp_rainbow(k, N, adjusted_num_replicas_list)
+        dp_records = dp_rainbow(k, N, adjusted_replicas_list, adjusted_weight_list)
     elif t == 'rainbow2':
-        dp_records = dp_rainbow2(k, N, adjusted_num_replicas_list)
+        dp_records = dp_rainbow2(k, N, adjusted_replicas_list)
     elif t == 'monochromatic':
-        dp_records = dp_monochromatic(k, N, adjusted_num_replicas_list)
+        dp_records = dp_monochromatic(k, N, adjusted_replicas_list, adjusted_weight_list)
 
     if show_output:
-        _print_placement(dp_records, adjusted_num_replicas_list, af_list)
-    return dp_records, adjusted_num_replicas_list
+        _print_placement(dp_records, adjusted_replicas_list, af_list)
+    return dp_records, adjusted_replicas_list
     #print(json.dumps(dp_records, indent=4, sort_keys=True))
 
 
