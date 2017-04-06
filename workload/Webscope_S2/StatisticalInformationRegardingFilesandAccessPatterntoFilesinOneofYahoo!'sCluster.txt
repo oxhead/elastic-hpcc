@@ -1,0 +1,77 @@
+Dataset brief description 
+Statistical information regarding files and access pattern to files in one of Yahoo cluster 
+
+Information for the Data Review Committee 
+How was the data collected? 
+In one of Yahoo grid(dilithium-gold), used hadoop command (hadoop dfs –lsr) to collect stats for file, and analyze auditlog to identify access pattern for each file 
+
+What is its source? 
+Name node and Audit log in dilithium-gold 
+
+How was it anonymized? 
+This data set contains only aggregated/statistical information, and doesn’t contain any privacy-related information. Thus, not anonymized 
+
+What is the goal in releasing this data to researchers? 
+To provide data about real file access pattern to a researcher in order to help the researcher develop methods to address issues on hadoop infrastructure and encourage them to publish papers to share new findings among hadoop community. 
+
+
+Public-friendly" dataset description 
+This dataset contains total number of files, total file size, number of file accesses, number of days between the first access and the most recent access, file distribution, deletion rate of files and directories, creation rate of files and directories in a dilithium-gold cluster. 
+
+
+Dataset full description 
+
+Data collection time 
+1) - 2) are obtained on 3/14/2010 and 3) – 8) are obtained using audit logs from 01/01/2009 to 03/13/2010 
+
+1) Total # of files in a cluster 
+41223652 
+
+2) Data set size 
+2453129945483740 B 
+
+3) Histogram of the number of file accesses 
+How many files were only created and not accessed subsequently at all? 
+8673686 
+How many files were accessed 
+< 10 times 23257527 
+< 20 times 3684566 
+< 40 times 3228428 
+< 60 times 886926 
+< 100 times 548699 
+> = 100 times 943820 
+Total filesize corresponding to each of the above bucket 
+0 times 426135974331298 Byte 
+< 10 times 566686992201044 Byte 
+< 20 times 236380256981769 Byte 
+< 40 times 222993745432702 Byte 
+< 60 times 137218038887293 Byte 
+< 100 times 175411132061718 Byte 
+> = 100 times 688303805587918 Byte 
+
+4) Histogram of the file life span (i.e. number of days between the first access and the most recent access) 
+How many files have a lifespan of: 
+< 2 days 21429417 
+< 1 week 2366262 
+< 2 weeks 1881016 
+< 3 weeks 1069974 
+< 4 weeks 769215 
+< 5 weeks 509266 
+< 6 weeks 345802 
+<7 weeks 370645 
+>= 7 weeks 3808369 
+5) File size distribution 
+How many files have a filesize: 
+< 4KB 8950740 (total file size (Byte): 6068324657) 
+<100KB 7742478 (total file size (Byte): 202835795179) 
+<1MB 5062081 (total file size(Byte): 2040491987307) 
+< 64MB 12897580 (total file size(Byte): 196279266442623) 
+<1G 6172697 (total file size(Byte): 1254606679142934) 
+>=1G 398076 ( total file size(Byte): 999994603791042) 
+
+6) deletion rate of files and directories (# of files and directories deleted during certain period) 
+324634961 divided by 463 days 
+7) creation rate of files (# of files created during certain period) 
+506967963 divided by 463 days 
+8) creation rate of directories (# of files created during certain period) 
+751690451 divided by 463 days 
