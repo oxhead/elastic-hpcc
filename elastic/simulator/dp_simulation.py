@@ -133,7 +133,8 @@ def adjust_num_replicas_by_weight(af_list, replica_list, num_slots):
         replica_list[min_index] -= 1
         weight_list[min_index] = af_list[min_index] / replica_list[min_index]
 
-    return replica_list
+    # fix a possible issue?
+    return [int(x) for x in replica_list]
 
 
 def run(M, N, k, t, workload_name='uniform', af_list=[], show_output=True):
