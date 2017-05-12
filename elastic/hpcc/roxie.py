@@ -78,6 +78,18 @@ def switch_data_placement(data_placement, data_dir="/var/lib/HPCCSystems/hpcc-da
             cmd = "for d in `find " + data_dir + " -type d`; do echo $d; ls -F $d | grep -v '[/@=|]$' | sudo xargs -I {} mv $d/{} $d/.{}; done"
             agent.submit_remote_commands(nodes, cmd, silent=True)
 
+    def hide_link_files(nodes, data_dir):
+        with parallel.CommandAgent(concurrency=len(nodes), show_result=False) as agent:
+            cmd = "find " + data_dir + " -type l | grep roxie | sudo xargs -I {} unlink {}"
+            # logger.info(cmd)
+            agent.submit_remote_commands(nodes, cmd, silent=True)
+
+    def hide_link_files2(nodes, data_dir):
+        with parallel.CommandAgent(concurrency=len(nodes), show_result=False) as agent:
+            cmd = "for d in `find " + data_dir + " -type d | grep roxie`; do echo $d; ls $d | grep sorted | sudo xargs -I {} mv $d/{} $d/.{}; done"
+            #logger.info(cmd)
+            agent.submit_remote_commands(nodes, cmd, silent=True)
+
     def show_index_files(nodes, data_dir):
         with parallel.CommandAgent(concurrency=len(nodes), show_result=False) as agent:
             cmd = "for d in `find " + data_dir + " -type d`; do echo $d; ls -a $d | grep '^\.idx' | cut -c 2- | xargs -I {} sudo mv $d/.{} $d/{}; done"
@@ -106,6 +118,8 @@ def switch_data_placement(data_placement, data_dir="/var/lib/HPCCSystems/hpcc-da
 
 
     logger.info("Data storage type is {}".format(storage_type))
+    logger.info("Data dir is {}".format(data_dir))
+
     if storage_type == 'nfs':
         logger.info("Hiding all data files")
         hide_files_nfs(data_placement.locations.keys(), data_dir=data_dir)
@@ -116,11 +130,45 @@ def switch_data_placement(data_placement, data_dir="/var/lib/HPCCSystems/hpcc-da
             for partition in set(partition_list):
                 partition_on_nfs = modify_nfs_path(node, partition)
                 execute("sudo mv {} {}".format(get_hidden_partition(partition_on_nfs), partition_on_nfs))
+    elif storage_type == 'local_link':
+        logger.info("Hiding all data files")
+        hide_link_files(data_placement.locations.keys(), data_dir=data_dir)
+        # logger.info("Showing all index files")
+        # show_index_files(data_placement.locations.keys(), data_dir=data_dir)
+        logger.info("Showing necessary data files")
+        with parallel.CommandAgent(concurrency=8, show_result=False) as agent:
+            for node, partition_list in data_placement.locations.items():
+                for partition in set(partition_list):
+                    if partition.startswith('/dataset'):
+                        partition_rename = partition.replace("/dataset", data_dir)
+                        # workaround
+                        agent.submit_remote_command(node, "sudo ln -s /{}/roxie/mybenchmark/.data_sorted_people_firstname_0._1_of_1 {}".format(data_dir, partition_rename), capture=False, silent=True)
+    elif storage_type == 'local_link_16':
+        # hard coded here
+        logger.info("Hiding all data files")
+        hide_link_files(data_placement.locations.keys(), data_dir=data_dir)
+        # no need because all index files are copied
+        # logger.info("Showing all index files")
+        # show_index_files(data_placement.locations.keys(), data_dir=data_dir)
+        logger.info("Showing necessary data files")
+        with parallel.CommandAgent(concurrency=8, show_result=False) as agent:
+            for node, partition_list in data_placement.locations.items():
+                for partition in set(partition_list):
+                    if partition.startswith('/dataset'):
+                        partition_rename = partition.replace("/dataset", data_dir)
+                        partition_id = int(partition_rename.split('.')[-2].split('_')[-1])
+
+                        agent.submit_remote_command(node, "sudo mv {} {}".format(get_hidden_partition(partition_rename),
+                                                                                 partition_rename), capture=False,
+                                                    silent=True)
+
     else:
         logger.info("Hiding all data files")
         hide_files(data_placement.locations.keys(), data_dir=data_dir)
         logger.info("Showing all index files")
         show_index_files(data_placement.locations.keys(), data_dir=data_dir)
+        import sys
+        sys.exit(0)
         logger.info("Showing necessary data files")
         with parallel.CommandAgent(concurrency=8, show_result=False) as agent:
             for node, partition_list in data_placement.locations.items():

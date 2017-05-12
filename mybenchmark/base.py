@@ -133,10 +133,10 @@ class Experiment:
                 roxie.switch_data_placement(self.dp, data_dir=self.data_dir, storage_type=self.storage_type)
             else:
                 print("No need to switch data placement")
-        #import sys
-        #sys.exit(0)
+
         if self.restart_hpcc:
             self.hpcc_service.start()
+        sys.exit(0)
 
     def post_run(self):
         wp_path = os.path.join(self.output_dir, "result", "workload_profile.json")
@@ -211,7 +211,7 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
                 app_config[app_name] = application_db[app_name]
             workload_config.set_config('workload.applications', app_config)
 
-        print(json.dumps(workload_config.config, indent=4))
+        #print(json.dumps(workload_config.config, indent=4))
 
         workload = Workload.from_config(workload_config)
         workload_timeline_dir = os.path.join(experiment_dir, '.workload_timeline') if experiment_dir else '.workload_timeline'
@@ -227,7 +227,7 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
         #sys.exit(0)
 
         experiment_id = per_setting['experiment.id']
-        print(per_setting['cluster.target'])
+        #print(per_setting['cluster.target'])
         hpcc_cluster = HPCCCluster.parse_config(per_setting['cluster.target'])
         benchmark_config = BenchmarkConfig.parse_file(per_setting['cluster.benchmark'])
         #print("before", benchmark_config.config)
@@ -273,9 +273,12 @@ def generate_experiments(default_setting, variable_setting_list, experiment_dir=
             #sys.exit(0)
             if per_setting.has_key('experiment.benchmark_manual_routing_table'):
                 routing_table = generate_routing_table(dp_new, workload_config.lookup_config('workload.endpoints'))
+                #print(json.dumps(routing_table, indent=4, sort_keys=True))
+                #sys.exit(0)
 
         data_dir = per_setting['experiment.dataset_dir'] if per_setting.has_key('experiment.dataset_dir') else '/dataset'
         storage_type = per_setting['experiment.storage_type'] if per_setting.has_key('experiment.storage_type') else 'nfs'
+
         experiment = Experiment(
             experiment_id,
             benchmark_config,
@@ -351,15 +354,16 @@ def generate_data_placement(old_nodes, new_nodes, locations, access_statistics, 
             sorted_partition_list.append(partition)
             sorted_af_list.append(af_list[partition_list.index(partition)])
     #print('-----------')
-    for i in range(len(sorted_partition_list)):
-        print(sorted_partition_list[i], sorted_af_list[i])
+    #for i in range(len(sorted_partition_list)):
+    #    print(sorted_partition_list[i], sorted_af_list[i])
     M = len(old_nodes)
     N = len(nodes)
     k = max_num_partitions
     t = dp_model
     print('+++Running data placement simulation+++')
-    dp_records, adjusted_num_replicas_list = dp_simulation.run(M, N, k, t, af_list=sorted_af_list)
 
+    dp_records, adjusted_num_replicas_list = dp_simulation.run(M, N, k, t, af_list=sorted_af_list, show_output=True)
+    sys.exit(0)
     # print(json.dumps(dp_records, indent=4))
 
     new_locations = {}
