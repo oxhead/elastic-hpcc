@@ -54,6 +54,162 @@ class WorkloadGenerator:
         # print('after)', list(reversed_cdf_list))
         return np.diff([0] + probability_list)
 
+
+class Node:
+    def __init__(self, nid, k):
+        self.nid = nid
+        self.slot_count = k
+        self.slots = [None] * k
+        self.partition_count = 0
+        self.load = 0.0
+        self.colors = 0
+        self.partition_set = set()
+
+    def is_full(self):
+        #print("N{}: {} out of {}".format(self.nid, self.partition_count, self.slot_count))
+        return self.partition_count == self.slot_count
+
+    def add_partition(self, p):
+        self.slots[self.partition_count] = p
+        self.partition_set.add(p.pid)
+        self.partition_count += 1
+        self.load += p.load
+        self.colors = len(set([self.slots[sid].pid for sid in range(self.partition_count)]))
+
+    def contain_partition(self, p):
+        return p.pid in self.partition_set
+
+    def get_num_partitions(self, pid):
+        count = 0
+        for p in [s for s in self.slots if s is not None]:
+            if p.pid == pid:
+                count += 1
+        return count
+
+
+    def get_values(self):
+        # load, # colors, nid
+        return (self.load, self.colors, self.nid)
+
+    def __str__(self):
+        return "N{0}({1:.1f}|{2})".format(self.nid, self.load, self.colors)
+
+    def __cmp__(self, other):
+        a = self._get_values()
+        b = other._get_values()
+        return (a > b) - (a < b)
+        #return cmp(self._get_values(), other._get_values())
+
+
+class Partition:
+    def __init__(self, pid, rid, load):
+        self.pid = pid
+        self.rid = rid
+        self.load = load
+
+    def get_values(self):
+        # load, # colors, nid
+        return (self.load, -self.pid, -self.rid)
+
+    def __str__(self):
+        return "P{0}({1}|{2:.1f})".format(self.pid, self.rid, self.load)
+
+
+class DataPlacement:
+    def __init__(self, N, k, num_replica_list, af_list):
+        self.nodes = [Node(nid, k) for nid in range(1, N+1)]
+        self.partitions = []
+        for i in range(len(num_replica_list)):
+            af_per_replica = af_list[i] / num_replica_list[i]
+            pid = i + 1
+            for rid in range(1, num_replica_list[i] + 1):
+                self.partitions.append(Partition(pid, rid, af_per_replica))
+
+    def mlb(self):
+        #print('before:', [str(p) for p in self.partitions])
+        self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
+        #print("--------------")
+        #print("Partition Order")
+        #print([str(p) for p in self.partitions])
+        #print("--------------")
+
+        for p in self.partitions:
+            self.nodes.sort(key=lambda x: (x.load, x.nid))
+            for node in self.nodes:
+                #print("{} for {}".format(node, p))
+                #print("N -> before:", [str(n) for n in self.nodes])
+                if not node.is_full():
+                    node.add_partition(p)
+                    break
+                #print("N -> after:", [str(n) for n in self.nodes])
+
+        #self.nodes.sort(key=lambda x: x.get_values())
+        #print([str(n) for n in self.nodes])
+
+    def mlb_mc(self):
+        self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
+
+        for p in self.partitions:
+            self.nodes.sort(key=lambda x: (x.load, x.colors, x.nid))
+            for node in self.nodes:
+                if not node.is_full():
+                    node.add_partition(p)
+                    break
+
+    def mc_mlb(self):
+        self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
+
+        for p in self.partitions:
+            # case 1: sort by num of colors per node but skip the nodes with the same partition id
+            self.nodes.sort(key=lambda x: (x.colors, x.load, x.nid))
+            added = False
+            for node in [n for n in self.nodes if not n.contain_partition(p)]:
+                if not node.is_full():
+                    node.add_partition(p)
+                    added = True
+                    break
+            # case 2: all nodes contain the same partition id then sort by number of colors, load and nid
+            if not added:
+                self.nodes.sort(key=lambda x: (x.get_num_partitions(p.pid), x.load, x.nid))
+                for node in self.nodes:
+                    if not node.is_full():
+                        node.add_partition(p)
+                        break
+
+    def mc(self):
+        self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
+
+        for p in self.partitions:
+            self.nodes.sort(key=lambda x: (x.get_num_partitions(p.pid), x.load, x.nid))
+            for node in self.nodes:
+                if not node.is_full():
+                    node.add_partition(p)
+                    break
+
+    def ml(self):
+        '''
+        maximize data locality / minimize memory footprint
+        '''
+        self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
+
+        for p in self.partitions:
+            self.nodes.sort(key=lambda x: (x.get_num_partitions(p.pid), -x.load, -x.nid), reverse=True)
+            for node in self.nodes:
+                if not node.is_full():
+                    node.add_partition(p)
+                    break
+
+    def print_details(self):
+        nodes = [n for n in self.nodes]
+        nodes.sort(key=lambda x: x.nid)
+
+        for node in nodes:
+            print("N{} ({})\t{}".format(
+                node.nid,
+                "{0:.1f}".format(node.load),
+                "\t".join([str(p) for p in node.slots])
+            ))
+
 def calculate_partition_loads(num_replicas_list, af_list):
     partition_load_records = [af_list[partition_id] / num_replicas_list[partition_id] for
                               partition_id
@@ -78,6 +234,10 @@ def _print_placement(dp_records, num_replicas_list, af_list):
     for node_id in sorted(dp_records.keys()):
         print("N{} ({})\t{}".format(node_id+1, "{0:.{1}f}".format(node_load_records[node_id], 2), " ".join(
             ["P{}".format(replica_index+1) for replica_index in sorted(dp_records[node_id])])))
+
+    print("Colors")
+    for node_id, partition_list in dp_records.items():
+        print("N{}: {}".format(node_id+1, len(set(partition_list))))
 
         # for replica_index in sorted(dp_records[node_id]):
         #    print("\tP{}".format(replica_index))
@@ -297,24 +457,43 @@ def run(M, N, k, t, workload_name='uniform', af_list=[], show_output=True):
         print("weight:", _to_string(adjusted_weight_list))
         print("-----------------------------------------")
     dp_records = {}
-    if t == 'mcs':
-        dp_records = dp_rainbow(k, N, adjusted_replicas_list)
-    elif t == 'mlb':
-        dp_records = dp_maximize_load_balanced(k, N, adjusted_replicas_list, af_list)
-    elif t == 'rainbow':
-        dp_records = dp_rainbow(k, N, adjusted_replicas_list, adjusted_weight_list)
-    elif t == 'rainbow2':
-        dp_records = dp_rainbow2(k, N, adjusted_replicas_list)
-    elif t == 'monochromatic':
-        dp_records = dp_monochromatic(k, N, adjusted_replicas_list, adjusted_weight_list)
+    if t == 'mlb':
+        dp = DataPlacement(N, k, adjusted_replicas_list, af_list)
+        dp.mlb()
+        dp_records = convert_dp_to_legacy_format(dp)
+    elif t in ['rainbow', 'mc']:
+        #dp_records = dp_rainbow(k, N, adjusted_replicas_list, adjusted_weight_list)
+        dp = DataPlacement(N, k, adjusted_replicas_list, af_list)
+        dp.mc()
+        dp_records = convert_dp_to_legacy_format(dp)
+    elif t in ['monochromatic', 'ml']:
+        # dp_records = dp_monochromatic(k, N, adjusted_replicas_list, adjusted_weight_list)
+        dp = DataPlacement(N, k, adjusted_replicas_list, af_list)
+        dp.ml()
+        dp_records = convert_dp_to_legacy_format(dp)
+    elif t in ['mcmlb']:
+        dp = DataPlacement(N, k, adjusted_replicas_list, af_list)
+        dp.mc_mlb()
+        dp_records = convert_dp_to_legacy_format(dp)
 
     if show_output:
+        #print(json.dumps(dp_records, indent=4, sort_keys=True))
         _print_placement(dp_records, adjusted_replicas_list, af_list)
     return dp_records, adjusted_replicas_list
     #print(json.dumps(dp_records, indent=4, sort_keys=True))
 
 
+def convert_dp_to_legacy_format(dp):
+    nodes = [n for n in dp.nodes]
+    nodes.sort(key=lambda x: x.nid)
 
+    dp_records = {}
+    for node in nodes:
+        partitinos = [p for p in node.slots]
+        partitinos.sort(key=lambda x: x.pid)
+
+        dp_records[node.nid-1] = [p.pid - 1 for p in partitinos]
+    return dp_records
 
 if __name__ == "__main__":
     M = 4  # minimum cluster size

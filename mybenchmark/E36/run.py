@@ -18,7 +18,7 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
     default_setting.set_config('cluster.target', "/home/chsu6/elastic-hpcc/template/elastic_1thor_8roxie_locality_localdisk.xml")
     default_setting.set_config('cluster.deploy_config', False)
     default_setting.set_config('cluster.benchmark', "/home/chsu6/elastic-hpcc/conf/benchmark_template.yaml")
-    default_setting.set_config('experiment.id', 'E34')
+    default_setting.set_config('experiment.id', 'E36')
     default_setting.set_config('experiment.goal', '''
     1. Test manual request-dispatch routing
     2. Test local disk mode
@@ -66,11 +66,11 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
     #import sys
     #sys.exit(0)
     coarse_data_placement_list = {
-        "beta": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "beta.json")),
-        "gamma": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "gamma.json")),
-        "normal": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "normal.json")),
-        "powerlaw": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "powerlaw.json")),
-        "uniform": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "uniform.json")),
+        #"beta": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "beta.json")),
+        #"gamma": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "gamma.json")),
+        #"normal": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "normal.json")),
+        #"powerlaw": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "powerlaw.json")),
+        #"uniform": (placement.DataPlacementType.coarse_partial, partition_locations, os.path.join(script_dir, "placement", "uniform.json")),
         "complete": (placement.DataPlacementType.complete, partition_locations, os.path.join(script_dir, "placement", "uniform.json")),
     }
     fine_data_placement_list = {
@@ -156,11 +156,11 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
 
 if __name__ == "__main__":
     dp_set = [
-        #('coarse', 'rainbow'),
+        ('coarse', 'rainbow'),
         #('fine', 'rainbow'),
         #('fine', 'monochromatic'),
         #('fine', 'mlb'),
-        ('fine', 'mcmlb'),
+        #('fine', 'mcmlb'),
     ]
     for dp_type, dp_model in dp_set:
         # dp_type, dp_model, selective_run, check_success

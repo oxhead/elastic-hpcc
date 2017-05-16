@@ -15,13 +15,13 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
     #####################################
     # 1. workload parameters
     default_setting = ExperimentConfig.new()
-    default_setting.set_config('cluster.target', "/home/chsu6/elastic-hpcc/template/elastic_1thor_8roxie_locality_localdisk.xml")
+    default_setting.set_config('cluster.target', "/home/chsu6/elastic-hpcc/template/elastic_1thor_8roxie_locality_nfs.xml")
     default_setting.set_config('cluster.deploy_config', False)
     default_setting.set_config('cluster.benchmark', "/home/chsu6/elastic-hpcc/conf/benchmark_template.yaml")
-    default_setting.set_config('experiment.id', 'E34')
+    default_setting.set_config('experiment.id', 'E37')
     default_setting.set_config('experiment.goal', '''
     1. Test manual request-dispatch routing
-    2. Test local disk mode
+    2. For comparison NFS version with local disk (E36)
     ''')
     default_setting.set_config('experiment.conclusion', '''
         1. Seems 4 driver nodes and 16 threads per node is enough to drive the maximum throughput
@@ -35,8 +35,8 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
     default_setting.set_config('experiment.benchmark_concurrency', 32)
     default_setting.set_config('experiment.benchmark_manual_routing_table', True)
     default_setting.set_config('experiment.roxie_concurrency', 80)
-    default_setting.set_config('experiment.dataset_dir', '/dataset_local')
-    default_setting.set_config('experiment.storage_type', 'local_link')
+    default_setting.set_config('experiment.dataset_dir', '/dataset')
+    default_setting.set_config('experiment.storage_type', 'nfs')
     # this only uses one query application
     #default_setting.set_config('experiment.applications', ['sequential_search_firstname', 'sequential_search_lastname', 'sequential_search_city', 'sequential_search_zip'])
     default_setting.set_config('workload.num_queries', 100)
@@ -156,12 +156,12 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
 
 if __name__ == "__main__":
     dp_set = [
-        #('coarse', 'rainbow'),
+        ('coarse', 'rainbow'),
         #('fine', 'rainbow'),
         #('fine', 'monochromatic'),
         #('fine', 'mlb'),
-        ('fine', 'mcmlb'),
+        #('fine', 'mcmlb'),
     ]
     for dp_type, dp_model in dp_set:
         # dp_type, dp_model, selective_run, check_success
-        main(dp_type, dp_model, True, True, num_iters=3)
+        main(dp_type, dp_model, True, True, num_iters=6)

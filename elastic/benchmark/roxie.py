@@ -13,8 +13,8 @@ from elastic.util import parallel
 
 class RoxieBenchmark(base.Benchmark):
 
-    def __init__(self, hpcc_cluster, benchmark_config, workload_timeline, output_dir="/tmp", routing_table={}, timeout=300):
-        super(RoxieBenchmark, self).__init__(hpcc_cluster.get_roxie_cluster(), output_dir)
+    def __init__(self, hpcc_cluster, benchmark_config, workload_timeline, output_dir="/tmp", routing_table={}, timeout=300, **kwargs):
+        super(RoxieBenchmark, self).__init__(hpcc_cluster.get_roxie_cluster(), output_dir, **kwargs)
         self.hpcc_cluster = hpcc_cluster
         self.benchmark_config = benchmark_config
         self.routing_table = routing_table

@@ -5,6 +5,7 @@ from elastic.hpcc import placement
 
 from mybenchmark.base import config as myconfig
 from mybenchmark.base import *
+from mybenchmark.E24 import myplacement
 
 def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
     init.setup_logging(default_level=logging.DEBUG, config_path="conf/logging.yaml", log_dir="logs", component="benchmark")
@@ -15,13 +16,12 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
     #####################################
     # 1. workload parameters
     default_setting = ExperimentConfig.new()
-    default_setting.set_config('cluster.target', "/home/chsu6/elastic-hpcc/template/elastic_1thor_8roxie_locality_localdisk.xml")
+    default_setting.set_config('cluster.target', "/home/chsu6/elastic-hpcc/template/elastic_1thor_8roxie_locality_nfs.xml")
     default_setting.set_config('cluster.deploy_config', False)
     default_setting.set_config('cluster.benchmark', "/home/chsu6/elastic-hpcc/conf/benchmark_template.yaml")
-    default_setting.set_config('experiment.id', 'E34')
+    default_setting.set_config('experiment.id', 'E40')
     default_setting.set_config('experiment.goal', '''
     1. Test manual request-dispatch routing
-    2. Test local disk mode
     ''')
     default_setting.set_config('experiment.conclusion', '''
         1. Seems 4 driver nodes and 16 threads per node is enough to drive the maximum throughput
@@ -35,13 +35,13 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
     default_setting.set_config('experiment.benchmark_concurrency', 32)
     default_setting.set_config('experiment.benchmark_manual_routing_table', True)
     default_setting.set_config('experiment.roxie_concurrency', 80)
-    default_setting.set_config('experiment.dataset_dir', '/dataset_local')
-    default_setting.set_config('experiment.storage_type', 'local_link')
+    default_setting.set_config('experiment.dataset_dir', '/dataset')
+    default_setting.set_config('experiment.storage_type', 'nfs')
     # this only uses one query application
     #default_setting.set_config('experiment.applications', ['sequential_search_firstname', 'sequential_search_lastname', 'sequential_search_city', 'sequential_search_zip'])
-    default_setting.set_config('workload.num_queries', 100)
-    default_setting.set_config('workload.period', 300)
-    default_setting.set_config('workload.dispatch_mode', 'once')
+    default_setting.set_config('workload.num_queries', 200)
+    default_setting.set_config('workload.period', 150)
+    default_setting.set_config('workload.dispatch_mode', 'batch')
     default_setting.set_config('workload.type', 'constant')
     # default_setting.set_config('workload.distribution', {"type": "powerlaw", "shape": 5})
     default_setting.set_config('workload.selection', {"type": "powerlaw", "shape": 5})
@@ -121,13 +121,12 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
             elif 'fine' in data_placement_type:
                 if not (data_placement_name in workload_name):
                     continue
-        # disable workload skew test
         #if workload_config['type'] != data_placement_name:
         #    continue
         variable_setting_list.append({
             'experiment.output_dir': os.path.join(output_dir, 'w-{}_dp-{}'.format(workload_name, data_placement_name)),
             'experiment.data_placement': data_placement_profile,
-            'experiment.dp_name': "dp_{}_{}_{}".format(dp_type, dp_model, data_placement_name),
+            'experiment.dp_name': "dp_{}_{}_{}".format(dp_type, dp_model, data_placement_name) if data_placement_name != 'complete' else 'dp_complete',
             'experiment.dp_model': dp_model,
             'workload.selection': workload_config, # different from previous experiment
             'workload.name': workload_name,
@@ -143,11 +142,12 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
             variable_setting_copied['experiment.output_dir'] = "{}_{}".format(variable_setting_copied['experiment.output_dir'], run_id)
             if not os.path.exists(variable_setting_copied['experiment.output_dir']):
                 print(variable_setting_copied['experiment.output_dir'])
+            # print(variable_setting_copied['experiment.output_dir'])
             final_variable_setting_list.append(variable_setting_copied)
             # print(variable_setting_copied['experiment.dp_name'])
     #import sys
     #sys.exit(0)
-    for experiment in generate_experiments(default_setting, final_variable_setting_list, experiment_dir=script_dir, timeline_reuse=True, wait_time=1, check_success=check_success, restart_hpcc=True, timeout=300):
+    for experiment in generate_experiments(default_setting, final_variable_setting_list, experiment_dir=script_dir, timeline_reuse=True, wait_time=1, check_success=check_success, restart_hpcc=True, timeout=500):
         print(experiment.output_dir)
         #helper.json_pretty_print(experiment.dp.locations)
         experiment.run()
@@ -156,11 +156,11 @@ def main(dp_type, dp_model, selective_run, check_success, num_iters=1):
 
 if __name__ == "__main__":
     dp_set = [
-        #('coarse', 'rainbow'),
+        ('coarse', 'rainbow'),
         #('fine', 'rainbow'),
-        #('fine', 'monochromatic'),
-        #('fine', 'mlb'),
-        ('fine', 'mcmlb'),
+        ('fine', 'monochromatic'),
+        ('fine', 'mlb'),
+        #('fine', 'mcmlb'),
     ]
     for dp_type, dp_model in dp_set:
         # dp_type, dp_model, selective_run, check_success

@@ -136,7 +136,7 @@ class Experiment:
 
         if self.restart_hpcc:
             self.hpcc_service.start()
-        sys.exit(0)
+        # sys.exit(0)
 
     def post_run(self):
         wp_path = os.path.join(self.output_dir, "result", "workload_profile.json")
@@ -172,7 +172,7 @@ class Experiment:
             return False
         try:
             self.pre_run()
-            bm = RoxieBenchmark(self.hpcc_cluster, self.benchmark_config, self.workload_timeline, output_dir=self.output_dir, routing_table=self.routing_table, timeout=self.timeout)
+            bm = RoxieBenchmark(self.hpcc_cluster, self.benchmark_config, self.workload_timeline, output_dir=self.output_dir, routing_table=self.routing_table, timeout=self.timeout, retries=2)
             time.sleep(self.wait_time)
             bm.run()
             if self.check_success and not self.check_successful():
@@ -363,7 +363,12 @@ def generate_data_placement(old_nodes, new_nodes, locations, access_statistics, 
     print('+++Running data placement simulation+++')
 
     dp_records, adjusted_num_replicas_list = dp_simulation.run(M, N, k, t, af_list=sorted_af_list, show_output=True)
-    sys.exit(0)
+    s = set()
+    for p_list in dp_records.values():
+        s.update(p_list)
+    print('Total unique partitions:', len(s))
+    assert len(s) == len(af_list)
+    #sys.exit(0)
     # print(json.dumps(dp_records, indent=4))
 
     new_locations = {}
