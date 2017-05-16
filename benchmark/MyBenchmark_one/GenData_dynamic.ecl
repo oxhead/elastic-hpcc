@@ -4,6 +4,8 @@
 //
 IMPORT Std;
 
+STRING15 input_id := '1' : STORED('id');
+
 //This code generates a nested child dataset containing 
 // 1,000,000 Person (parent) records and all their associated Accounts (children)
 // by starting with 1000 first names and 1000 last names
@@ -2886,12 +2888,12 @@ END;
 
 
 //write files to disk
-O_1 := OUTPUT(PROJECT(base_people_sort_by_firstname,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_FirstName_1',OVERWRITE);
+O_1 := OUTPUT(PROJECT(base_people_sort_by_firstname,Layout_Person),,$.DeclareData.OUTPUT_DIR+'Data_Sorted_People_FirstName_'+input_id,OVERWRITE);
 
 P1 := SEQUENTIAL(O_1);
 
-D_1 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_FirstName_1',{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
-I_1 := INDEX(D_1,{FirstName,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_FirstName_1');
+D_1 := DATASET($.DeclareData.OUTPUT_DIR+'Data_Sorted_People_FirstName_'+input_id,{Layout_Person,UNSIGNED8 RecPos{VIRTUAL(fileposition)}}, THOR);
+I_1 := INDEX(D_1,{FirstName,RecPos},$.DeclareData.OUTPUT_DIR+'Idx_Sorted_People_FirstName_'+input_id);
 B_1 := BUILDINDEX(I_1,OVERWRITE);
 
 P2 := SEQUENTIAL(B_1);

@@ -9,7 +9,7 @@ import gevent.queue
 from gevent.lock import Semaphore
 
 
-num_workers = 128
+num_workers = 1
 worker_pool = gevent.pool.Pool(num_workers)
 worker_queue = gevent.queue.Queue()
 mylock = Semaphore()
@@ -32,7 +32,7 @@ def run():
 
     num_queries = num_workers * 100
 
-    for app_id in range(1, 1025):
+    for app_id in range(1, 129):
         query_name = "sequential_search_firstname_{}".format(app_id)
         query_key = 'firstname'
         key_firstname = 'MARY'

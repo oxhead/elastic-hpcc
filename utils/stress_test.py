@@ -9,7 +9,7 @@ import gevent.queue
 from gevent.lock import Semaphore
 
 
-num_workers = 128
+num_workers = 8
 worker_pool = gevent.pool.Pool(num_workers)
 worker_queue = gevent.queue.Queue()
 mylock = Semaphore()
@@ -28,14 +28,17 @@ def run():
         "http://10.25.2.140:9876",
     ]
 
+
     endpoints = endpoints[:]
+    #endpoints = endpoints[-1:]
 
     num_queries = num_workers * 100
 
     index = 0
-    query_name = "sequential_search_firstname_1"
+    query_name = "sequential_search_firstname_16"
     query_key = 'firstname'
-    key_list = open('/home/chsu6/elastic-hpcc/benchmark/dataset/firstname_list_1085.txt', 'r').readlines()
+    # key_list = open('/home/chsu6/elastic-hpcc/benchmark/dataset/firstname_list_1085.txt', 'r').readlines()
+    key_list = open('/home/chsu6/elastic-hpcc/benchmark/dataset/firstname_list_2000.txt', 'r').readlines()
     #key = 'MARY'
     print('total queries={}'.format(num_queries))
     for i in range(num_queries):
