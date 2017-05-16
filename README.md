@@ -178,28 +178,20 @@
 2. Execute the example scripts under **example/** to prepare data and Roxie queries
 
   ```
-
+  bash example/run_anagram2.sh
+  bash example/run_original_person.sh
+  bash example/run_six_degree.sh
   ```
-* bash example/run_anagram2.sh
-* bash example/run_original_person.sh
-* bash example/run_six_degree.sh
-  ```
-
-  ```
-
-1. To run a stress test, do
+3. To run a stress test, do
 
   ```
   benchmark stress --times 20 --query validateanagrams --query searchlinks --query fetchpeoplebyzipservice --concurrency=2
   ```
-
-2. To run a stress test in a distributed mode, do
+4. To run a stress test in a distributed mode, do
 
   ```
   benchmark distributed_stress --query searchlinks --times 2 --concurrency 2
   ```
-
-
 
 ### How to run benchmark in the single node mode
 
@@ -309,54 +301,94 @@
    ```shell
    hpcc deploy_config -c template/elastic_1thor_8roxie_locality_nfs.xml
    ```
+
 2. Reload topology cache
    ```shell
    hpcc --reload print_topology
    ```
+
 3. 2. Clean system (if required)
    ```shell
    hpcc clear_system; hpcc clear_log
    ```
+
 4. Start HPCC service
    ```shell
    hpcc service --action start
    ```
+
 5. Generate required data (here 128 * 1GB partition)
    ```shell
    for (( i=1;i<=128;i++ )); do echo Generating partition $i; thor run --ecl benchmark/MyBenchmark_dynamic/GenData_dynamic.ecl --parameter id $i --wait_until_complete; done
    ```
+
 6. Copy required data from Thor to Roxie (using NFS here)
    ```shell
+   # mount NFS
    for h in `cat .cluster_conf`; do echo $h; ssh $h "sudo umount /dataset; sudo mkdir -p /dataset; sudo chown hpcc:hpcc /dataset; sudo mount 10.25.0.201:/VinceFreeh_HPCC/$h /dataset"; done
-   ```
-   ```shell
+   # grant permission
    for d in `cat .cluster_conf`; do sudo mkdir -p /dataset/$d/roxie/mybenchmark;  sudo chown -R systemd-bus-proxy:hpcc /dataset/$d; done
-   ```
-   ```shell
+   # copy data
    for f in `ls /dataset/10.25.2.131/thor/mybenchmark`; do echo $f; for (( i=2;i<=9;i++ )); do echo copinyg $f to node$i; sudo cp /dataset/10.25.2.131/thor/mybenchmark/$f /dataset/`getent hosts node$i | awk '{ print $1 }'`/roxie/mybenchmark; done; done
    ```
-7. Publish Roxie Query (no data will be copied to Roxie)
-   ```shell
-   for (( i=1;i<=128;i++ )); do roxie publish sequential_search_firstname_$i --ecl benchmark/MyBenchmark_dynamic/SequentialSearch_FirstName_$i.ecl; done
+
+7. Copy required data from Thor to Roxie (for local disks)
+
+   ```bash
+   # generating data partition
+   for (( i=1;i<=128;i++ )); do echo Generating partition $i; thor run --ecl benchmark/MyBenchmark_dynamic/GenData_dynamic.ecl --parameter id $i --wait_until_complete; done
+   # copy the index files
+   for d in `cat .cluster_conf`; do echo $d; ssh $d sudo cp -r /dataset_local/thor_nfs/mybenchmark/idx_sorted_people_firstname_* /dataset_local/roxie/mybenchmark; done
+   # switch to the complete layout
+   for d in `cat .cluster_conf`; do echo $d; for (( i=1;i<=128;i++ )); do ssh $d "sudo mv /dataset_local/roxie/mybenchmark/.data_sorted_people_firstname_$i._1_of_1 /dataset_local/roxie/mybenchmark/data_sorted_people_firstname_$i._1_of_1"; done; done
    ```
-8. Generate required keys list for request workload
-   ```shell
-   python utils/generate_valid_keys.py benchmark/dataset/firstname_list_3068.txt
+
+8. for 1 partition
+   ```bash
+   ### copy a partition from thor
+   for d in `cat .cluster_conf`; do echo $d; ssh $d "sudo mkdir -p /dataset_local/roxie/mybenchmark; sudo cp -r /dataset_local/thor_nfs/data_sorted_people_firstname_1._1_of_1 /dataset_local/roxie/mybenchmark/.data_sorted_people_firstname_0._1_of_1"; done
+   # create links
+   for d in `cat .cluster_conf`; do echo $d; for (( i=1;i<=128;i++ )); do ssh $d "sudo ln -s /dataset_local/roxie/mybenchmark/.data_sorted_people_firstname_0._1_of_1 /dataset_local/roxie/mybenchmark/data_sorted_people_firstname_$i._1_of_1"; done; done
+   # unlink
+   for d in `cat .cluster_conf`; do echo $d; for (( i=1;i<=128;i++ )); do ssh $d "sudo rm -f /dataset_local/roxie/mybenchmark/data_sorted_people_firstname_$i._1_of_1"; done; done
    ```
-9. Deploy benchmark code
+9. for 16 nodes
+   ```bash
+   ### copy 16 partitions from thor
+   for (( i=0;i<=15;i++ )); do echo "$((i*8+1))"; sudo cp /dataset_local/thor_nfs/mybenchmark/data_sorted_people_firstname_$((i*8+1))._1_of_1 /dataset_local/roxie/mybenchmark; done
+   for (( i=0;i<=15;i++ )); do echo "$((i*8+1))"; for (( j=2;j<=8;j++ )); do ln -s /dataset_local/roxie/mybenchmark/data_sorted_people_firstname_$((i*8+1))._1_of_1 /dataset_local/roxie/mybenchmark/data_sorted_people_firstname_$((i*8+j))._1_of_1; done; done
+   ```
+10. Publish Roxie Query (no data will be copied to Roxie)
+ ```shell
+ for (( i=1;i<=128;i++ )); do roxie publish sequential_search_firstname_$i --ecl benchmark/MyBenchmark_dynamic/SequentialSearch_FirstName_$i.ecl; done
+ ```
+
+11. Generate required keys list for request workload
+  ```shell
+  python utils/generate_valid_keys.py benchmark/dataset/firstname_list_3068.txt
+  ```
+
+12. Deploy benchmark code
    ```shell
    benchmark --config conf/benchmark_template.yaml deploy
    ```
-10. Install required packages for benchmark service
- ```shell
- benchmark --config conf/benchmark_template.yaml install_package
- ```
-11. Run the evaluation program
+
+13. Install required packages for benchmark service
+  ```shell
+  benchmark --config conf/benchmark_template.yaml install_package
+  ```
+14. Run the evaluation program
    ```
    python mybenchmark/E24/run.py
    ```
 
 
+
+
+### Calculate partition granularity vs. load skew
+  ```
+  python mybenchmark/E29/run.py
+  ```
 
 ### Note
 
