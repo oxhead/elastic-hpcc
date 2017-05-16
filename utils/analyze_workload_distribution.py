@@ -77,7 +77,7 @@ def calculate_partition_distribution(workload_distribution, num_hosts=4, num_par
     print(json.dumps(partition_access, indent=4, sort_keys=True))
 
 
-def show_data(distribution_type, input_file):
+def show_data(distribution_type, input_file, num_partitions=1024):
     with open(input_file, 'r') as f:
         workload_distribution = json.load(f)
     print(distribution_type, input_file)
@@ -85,7 +85,7 @@ def show_data(distribution_type, input_file):
     #calculate_file_partition_access(workload_distribution)
     #calculate_aggregate_file_partition_access(workload_distribution)
     #calculate_aggregate_app_access(workload_distribution)
-    calculate_sudo_host_access(workload_distribution, num_hosts=4, num_partitions=1024)
+    calculate_sudo_host_access(workload_distribution, num_hosts=4, num_partitions=num_partitions)
     #calculate_partition_distribution(workload_distribution)
 
 if __name__ == "__main__":
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     for result_dir in sorted(glob.glob("{}/*".format(dir_path))):
         input_file = result_dir
         #input_file = os.path.join(result_dir, "result", "access_distribution.json")
-        show_data(result_dir, input_file)
+        show_data(result_dir, input_file, num_partitions=int(sys.argv[2]) if len(sys.argv) > 2 else 1024)
 
 
 
