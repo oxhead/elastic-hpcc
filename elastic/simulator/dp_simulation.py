@@ -126,6 +126,7 @@ class DataPlacement:
                 self.partitions.append(Partition(pid, rid, af_per_replica))
 
     def mlb(self):
+        print("# MLB")
         #print('before:', [str(p) for p in self.partitions])
         self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
         #print("--------------")
@@ -157,6 +158,7 @@ class DataPlacement:
                     break
 
     def mc_mlb(self):
+        print("# MCMLB")
         self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
 
         for p in self.partitions:
@@ -177,6 +179,7 @@ class DataPlacement:
                         break
 
     def mc(self):
+        print("# MC")
         self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
 
         for p in self.partitions:
@@ -190,6 +193,7 @@ class DataPlacement:
         '''
         maximize data locality / minimize memory footprint
         '''
+        print("# ML")
         self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
 
         for p in self.partitions:
@@ -456,6 +460,8 @@ def run(M, N, k, t, workload_name='uniform', af_list=[], show_output=True):
         print("num_replicas:", _to_string(adjusted_replicas_list, is_integer=True))
         print("weight:", _to_string(adjusted_weight_list))
         print("-----------------------------------------")
+
+    print("%%%%%%%%%%%%%%%%%%%%%%")
     dp_records = {}
     if t == 'mlb':
         dp = DataPlacement(N, k, adjusted_replicas_list, af_list)
@@ -467,6 +473,7 @@ def run(M, N, k, t, workload_name='uniform', af_list=[], show_output=True):
         dp.mc()
         dp_records = convert_dp_to_legacy_format(dp)
     elif t in ['monochromatic', 'ml']:
+        print("*****************")
         # dp_records = dp_monochromatic(k, N, adjusted_replicas_list, adjusted_weight_list)
         dp = DataPlacement(N, k, adjusted_replicas_list, af_list)
         dp.ml()

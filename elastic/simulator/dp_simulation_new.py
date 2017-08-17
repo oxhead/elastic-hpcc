@@ -129,7 +129,10 @@ def adjust_num_replicas_by_weight(af_list, replica_list, num_slots):
             else:
                 min_index = index
                 break
-        #print("select", min_index)
+        #print("select={}, replica={}".format(min_index, replica_list[min_index]))
+        #if min_index == -1:
+        #    print("@@@@@@@@@@@@@@@@")
+        #    print(replica_list)
         replica_list[min_index] -= 1
         weight_list[min_index] = af_list[min_index] / replica_list[min_index]
 
@@ -208,6 +211,7 @@ class DataPlacement:
                 self.partitions.append(Partition(pid, rid, af_per_replica))
 
     def mlb(self):
+        print("# MLB")
         #print('before:', [str(p) for p in self.partitions])
         self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
         #print("--------------")
@@ -229,6 +233,7 @@ class DataPlacement:
         #print([str(n) for n in self.nodes])
 
     def mlb_mc(self):
+        print("# MLBMC")
         self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
 
         for p in self.partitions:
@@ -239,6 +244,7 @@ class DataPlacement:
                     break
 
     def mc_mlb(self):
+        print("# MCMLB")
         self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
 
         for p in self.partitions:
@@ -259,6 +265,7 @@ class DataPlacement:
                         break
 
     def mc(self):
+        print("# MC")
         self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
 
         for p in self.partitions:
@@ -272,6 +279,7 @@ class DataPlacement:
         '''
         maximize data locality / minimize memory footprint
         '''
+        print("# ML")
         self.partitions.sort(key=lambda x: (x.load, -x.pid, -x.rid), reverse=True)
 
         for p in self.partitions:
@@ -466,9 +474,9 @@ def run(M, N, k, t, workload_name='uniform', af_list=[], show_output=True):
         dp.mlb_mc()
     elif t == 'mcmlb':
         dp.mc_mlb()
-    elif t == 'mc' or 'rainbow':
+    elif (t == 'mc') or (t == 'rainbow'):
         dp.mc()
-    elif t == 'ml' or 'monochromatic':
+    elif (t == 'ml') or (t == 'monochromatic'):
         dp.ml()
 
     if show_output:
